@@ -401,6 +401,7 @@ def draw_boxes(image, boxes=None, refined_boxes=None,
                 ax.add_patch(p)
     ax.imshow(masked_image.astype(np.uint8))
 
+
 def plot_loss(loss, val_loss, save=True, log_dir=None):
     plt.figure("loss")
     plt.gcf().clear()

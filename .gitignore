@@ -1,0 +1,11 @@
+# data
+*.csv
+*.zip
+*.png
+*.jpg
+
+# temp files
+*.iml
+*.xml
+pytorch-mask-rcnn-master/.ipynb_checkpoints/*
+*.py[cod]
