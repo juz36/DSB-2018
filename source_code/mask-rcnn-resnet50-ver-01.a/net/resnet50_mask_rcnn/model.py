@@ -147,9 +147,6 @@ class FeatureNet(nn.Module):
         return features
 
 
-
-
-
 ############# various head ##############################################################################################
 
 class RpnMultiHead(nn.Module):
@@ -177,8 +174,6 @@ class RpnMultiHead(nn.Module):
                     nn.Conv2d(channels, self.num_bases[l]*self.num_classes*4, kernel_size=3, padding=1),
                 )
             )
-
-
 
     def forward(self, fs):
         batch_size = len(fs[0])
