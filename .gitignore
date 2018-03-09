@@ -4,8 +4,10 @@
 *.png
 *.jpg
 
+# util files
+*.npy
+
 # temp files
 *.iml
 *.xml
-pytorch-mask-rcnn-master/.ipynb_checkpoints/*
 *.py[cod]
