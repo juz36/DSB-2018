@@ -49,13 +49,14 @@ class RPN(nn.Module):
     _feat_stride = [16, ]
     anchor_scales = [8, 16, 32]
 
-    def __init__(self):
+    def __init__(self, cfg, channels):
         super(RPN, self).__init__()
+        self.num_classes = cfg.num_classes
 
-#        self.features = VGG16(bn=False)
-        self.conv1 = Conv2d(512, 512, 3, same_padding=True)
-        self.score_conv = Conv2d(512, len(self.anchor_scales) * 3 * 2, 1, relu=False, same_padding=False)
-        self.bbox_conv = Conv2d(512, len(self.anchor_scales) * 3 * 4, 1, relu=False, same_padding=False)
+        # TBD: input dim, kernel size, padding, stride, output dim
+        self.conv1 = Conv2d(channels, 2*channels, 3, same_padding=True)
+        self.score_conv = Conv2d(2*channels, len(self.anchor_scales) * 3 * 2, 3, relu=False, same_padding=True)
+        self.bbox_conv = Conv2d(2*channels, len(self.anchor_scales) * 3 * 4, 3, relu=False, same_padding=True)
 
         # loss
         self.cross_entropy = None
@@ -66,22 +67,26 @@ class RPN(nn.Module):
         return self.cross_entropy + self.loss_box * 10
 
     def forward(self, x, im_info, gt_boxes=None, gt_ishard=None, dontcare_areas=None):
-#        im_data = network.np_to_variable(im_data, is_cuda=True)
-#        im_data = im_data.permute(0, 3, 1, 2)
-#        features = self.features(im_data)
 
         rpn_conv1 = self.conv1(x)
 
+        # TBD: Dropout
+
         # rpn score
         rpn_cls_score = self.score_conv(rpn_conv1)
-        rpn_cls_score_reshape = self.reshape_layer(rpn_cls_score, 2)
-        rpn_cls_prob = F.softmax(rpn_cls_score_reshape)
-        rpn_cls_prob_reshape = self.reshape_layer(rpn_cls_prob, len(self.anchor_scales)*3*2)
+        #rpn_cls_score_reshape = self.reshape_layer(rpn_cls_score, 2)
+        rpn_cls_score = rpn_cls_score.permute(0, 2, 3, 1).contiguous().view(x.size(0), -1, self.num_classes)
+        #rpn_cls_prob = F.softmax(rpn_cls_score)
+        #rpn_cls_prob_reshape = self.reshape_layer(rpn_cls_prob, len(self.anchor_scales)*3*2)
 
         # rpn boxes
         rpn_bbox_pred = self.bbox_conv(rpn_conv1)
+        rpn_bbox_pred = rpn_bbox_pred.permute(0, 2, 3, 1).contiguous().view(x.size(0), -1, self.num_classes, 4)
+
+        rois = make_anchors(x)
 
         # proposal layer
+'''
         cfg_key = 'TRAIN' if self.training else 'TEST'
         rois = self.proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred, im_info,
                                    cfg_key, self._feat_stride, self.anchor_scales)
@@ -92,8 +97,8 @@ class RPN(nn.Module):
             rpn_data = self.anchor_target_layer(rpn_cls_score, gt_boxes, gt_ishard, dontcare_areas,
                                                 im_info, self._feat_stride, self.anchor_scales)
             self.cross_entropy, self.loss_box = self.build_loss(rpn_cls_score_reshape, rpn_bbox_pred, rpn_data)
-
-        return features, rois
+'''
+        return rpn_cls_score, rpn_bbox_pred, rois
 
     def build_loss(self, rpn_cls_score_reshape, rpn_bbox_pred, rpn_data):
         # classification loss
@@ -169,3 +174,37 @@ class RPN(nn.Module):
         rpn_bbox_outside_weights = network.np_to_variable(rpn_bbox_outside_weights, is_cuda=True)
 
         return rpn_labels, rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_outside_weights
+
+def make_anchors(features):
+
+    base_sizes = [8, 16, 32, 64]
+    ratios = [(1, 1), (1, 2), (2, 1)]
+    bases = []
+    for base_size in base_sizes:
+        for ratio in ratios:
+            w = ratio[0] * base_size
+            h = ratio[1] * base_size
+            rw = round(w/2)
+            rh = round(h/2)
+            base =(-rw, -rh, rw, rh, )
+            bases.append(base)
+    bases = np.array(bases, np.float32)
+
+    anchors  = []
+    _, _, H, W = features.size()
+    for y, x in itertools.product(range(H),range(W)):
+        # TODO
+        cx = x*2
+        cy = y*2
+
+        for b in bases:
+            x0,y0,x1,y1 = b
+            x0 += cx
+            y0 += cy
+            x1 += cx
+            y1 += cy
+            anchors.append([x0,y0,x1,y1])
+
+    rpn_anchors  = np.array(anchors, np.float32)
+
+    return rpn_anchors

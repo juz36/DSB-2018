@@ -6,7 +6,7 @@ from .crop_and_resize import CropAndResizeFunction
 
 class RoIAlign(nn.Module):
 
-    def __init__(self, crop_height, crop_width, extrapolation_value=0, transform_fpcoor=True):
+    def __init__(self, crop_height, crop_width, extrapolation_value=0, transform_fpcoor=False):
         super(RoIAlign, self).__init__()
 
         self.crop_height = crop_height
@@ -14,7 +14,7 @@ class RoIAlign(nn.Module):
         self.extrapolation_value = extrapolation_value
         self.transform_fpcoor = transform_fpcoor
 
-    def forward(self, featuremap, boxes, box_ind):
+    def forward(self, features, rois):
         """
         RoIAlign based on crop_and_resize.
         See more details on https://github.com/ppwwyyxx/tensorpack/blob/6d5ba6a970710eaaa14b89d24aace179eb8ee1af/examples/FasterRCNN/model.py#L301
@@ -23,8 +23,10 @@ class RoIAlign(nn.Module):
         :param box_ind: M
         :return: MxCxoHxoW
         """
-        x1, y1, x2, y2 = torch.split(boxes, 1, dim=1)
-        image_height, image_width = featuremap.size()[2:4]
+
+        box_ind, x1, y1, x2, y2 = torch.split(rois, 1, dim=1)
+        box_ind = box_ind.int()
+        image_height, image_width = features.size()[2:4]
 
         if self.transform_fpcoor:
             spacing_w = (x2 - x1) / float(self.crop_width)
@@ -45,4 +47,4 @@ class RoIAlign(nn.Module):
 
         boxes = boxes.detach().contiguous()
         box_ind = box_ind.detach()
-        return CropAndResizeFunction(self.crop_height, self.crop_width, self.extrapolation_value)(featuremap, boxes, box_ind)
+        return CropAndResizeFunction(self.crop_height, self.crop_width, self.extrapolation_value)(features, boxes, box_ind)
