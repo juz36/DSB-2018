@@ -139,20 +139,20 @@ class ResNet(nn.Module):
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
-        x = self.maxpool(x)
+        C1 = self.maxpool(x)
 
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.layer4(x)
+        C2 = self.layer1(C1)
+        C3 = self.layer2(C2)
+        C4 = self.layer3(C3)
+        C5 = self.layer4(C4)
 
         if self.include_top:
-            x = self.avgpool(x)
+            x = self.avgpool(C5)
             # reshape
             x = x.view(x.size(0), -1)
             x = self.fc(x)
 
-        return x
+        return C1, C2, C3, C4, C5
 
 
 # ---------------------------------------------------------------

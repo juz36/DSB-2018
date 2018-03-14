@@ -46,17 +46,14 @@ class FC(nn.Module):
 # RPN
 
 class RPN(nn.Module):
-    _feat_stride = [16, ]
-    anchor_scales = [8, 16, 32]
-
-    def __init__(self, cfg, channels):
+    def __init__(self, input_dims, anchors_per_location, anchor_stride):
         super(RPN, self).__init__()
-        self.num_classes = cfg.num_classes
+        #self.num_classes = cfg.num_classes
 
         # TBD: input dim, kernel size, padding, stride, output dim
-        self.conv1 = Conv2d(channels, 2*channels, 3, same_padding=True)
-        self.score_conv = Conv2d(2*channels, len(self.anchor_scales) * 3 * 2, 3, relu=False, same_padding=True)
-        self.bbox_conv = Conv2d(2*channels, len(self.anchor_scales) * 3 * 4, 3, relu=False, same_padding=True)
+        self.conv1 = Conv2d(input_dims, 512, 3, stride=anchor_stride, same_padding=True)
+        self.score_conv = Conv2d(512, 2 * anchors_per_location, 3, relu=False, same_padding=True)
+        self.bbox_conv = Conv2d(512, 4 * anchors_per_location, 3, relu=False, same_padding=True)
 
         # loss
         self.cross_entropy = None
@@ -66,39 +63,35 @@ class RPN(nn.Module):
     def loss(self):
         return self.cross_entropy + self.loss_box * 10
 
-    def forward(self, x, im_info, gt_boxes=None, gt_ishard=None, dontcare_areas=None):
-
+    def forward(self, x):#, im_info, gt_boxes=None, gt_ishard=None, dontcare_areas=None):
         rpn_conv1 = self.conv1(x)
-
-        # TBD: Dropout
-
         # rpn score
         rpn_cls_score = self.score_conv(rpn_conv1)
         #rpn_cls_score_reshape = self.reshape_layer(rpn_cls_score, 2)
-        rpn_cls_score = rpn_cls_score.permute(0, 2, 3, 1).contiguous().view(x.size(0), -1, self.num_classes)
-        #rpn_cls_prob = F.softmax(rpn_cls_score)
+        rpn_cls_score = rpn_cls_score.permute(0, 2, 3, 1).contiguous().view(x.size(0), -1, 2)
+        rpn_cls_prob = F.softmax(rpn_cls_score, dim=-1)
         #rpn_cls_prob_reshape = self.reshape_layer(rpn_cls_prob, len(self.anchor_scales)*3*2)
 
         # rpn boxes
         rpn_bbox_pred = self.bbox_conv(rpn_conv1)
-        rpn_bbox_pred = rpn_bbox_pred.permute(0, 2, 3, 1).contiguous().view(x.size(0), -1, self.num_classes, 4)
+        rpn_bbox_pred = rpn_bbox_pred.permute(0, 2, 3, 1).contiguous().view(x.size(0), -1, 4)
 
-        rois = make_anchors(x)
+        return rpn_cls_score, rpn_cls_prob, rpn_bbox_pred
 
         # proposal layer
-'''
-        cfg_key = 'TRAIN' if self.training else 'TEST'
-        rois = self.proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred, im_info,
-                                   cfg_key, self._feat_stride, self.anchor_scales)
 
-        # generating training labels and build the rpn loss
-        if self.training:
-            assert gt_boxes is not None
-            rpn_data = self.anchor_target_layer(rpn_cls_score, gt_boxes, gt_ishard, dontcare_areas,
-                                                im_info, self._feat_stride, self.anchor_scales)
-            self.cross_entropy, self.loss_box = self.build_loss(rpn_cls_score_reshape, rpn_bbox_pred, rpn_data)
-'''
-        return rpn_cls_score, rpn_bbox_pred, rois
+        # cfg_key = 'TRAIN' if self.training else 'TEST'
+        # rois = self.proposal_layer(rpn_cls_prob_reshape, rpn_bbox_pred, im_info,
+        #                            cfg_key, self._feat_stride, self.anchor_scales)
+        #
+        # # generating training labels and build the rpn loss
+        # if self.training:
+        #     assert gt_boxes is not None
+        #     rpn_data = self.anchor_target_layer(rpn_cls_score, gt_boxes, gt_ishard, dontcare_areas,
+        #                                         im_info, self._feat_stride, self.anchor_scales)
+        #     self.cross_entropy, self.loss_box = self.build_loss(rpn_cls_score_reshape, rpn_bbox_pred, rpn_data)
+        #
+        # return rpn_cls_score, rpn_bbox_pred, rois
 
     def build_loss(self, rpn_cls_score_reshape, rpn_bbox_pred, rpn_data):
         # classification loss
