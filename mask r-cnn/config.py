@@ -27,13 +27,13 @@ class Config(object):
     NAME = None  # Override in sub-classes
 
     # NUMBER OF GPUs to use. For CPU training, use 1
-    GPU_COUNT = 1
+    GPU_COUNT = 2
 
     # Number of images to train with on each GPU. A 12GB GPU can typically
     # handle 2 images of 1024x1024px.
     # Adjust based on your GPU memory and image sizes. Use the highest
     # number that your GPU can handle for best performance.
-    IMAGES_PER_GPU = 8
+    IMAGES_PER_GPU = 1
 
     # Number of training steps per epoch
     # This doesn't need to match the size of the training set. Tensorboard
