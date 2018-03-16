@@ -6,6 +6,8 @@ from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
+import numpy as np
+import math
 
 from model.resnet import resnet50
 from model.rpn import RPN
@@ -13,6 +15,11 @@ from model.rpn import RPN
 from model.lib.roi_align.roi_align.crop_and_resize import CropAndResize
 from model.lib.bbox.generate_anchors import generate_pyramid_anchors
 from model.lib.bbox.nms import torch_nms as nms
+
+
+def log2_graph(x):
+    """Implementatin of Log2. pytorch doesn't have a native implemenation."""
+    return torch.div(torch.log(x), math.log(2.))
 
 def ROIAlign(feature_maps, rois, config, pool_size, mode='bilinear'):
     """Implements ROI Align on the features.
@@ -101,8 +108,9 @@ class MaskHead(nn.Module):
 
     def __init__(self, config):
         super(MaskHead, self).__init__()
-        self.num_classes = config.num_classes
-        self.crop_size = config.mask_crop_size
+        self.config = config
+        self.num_classes = config.NUM_CLASSES
+        #self.crop_size = config.mask_crop_size
 
         #self.roi_align = RoIAlign(self.crop_size, self.crop_size)
         self.conv1 = nn.Conv2d(256, 256, kernel_size=3, padding=1, stride=1)
@@ -148,14 +156,17 @@ class RCNNHead(nn.Module):
     def __init__(self, config):
         super(RCNNHead, self).__init__()
         self.config = config
-        self.num_classes = config.num_classes
-        self.crop_size = config.rcnn_crop_size
+        self.num_classes = config.NUM_CLASSES
+        #self.crop_size = config.rcnn_crop_size
 
         #self.roi_align = RoIAlign(self.crop_size, self.crop_size)
-        self.fc1 = nn.Linear(256, 1024)
+        self.fc1 = nn.Linear(1024, 1024)
         self.fc2 = nn.Linear(1024, 1024)
         self.class_logits = nn.Linear(1024, self.num_classes)
         self.bbox = nn.Linear(1024, self.num_classes * 4)
+
+        self.conv1 = nn.Conv2d(256, 1024, kernel_size=self.config.POOL_SIZE, stride=1, padding=0)
+        self.bn1 = nn.BatchNorm2d(1024, eps=0.001)
 
     def forward(self, x, rpn_rois):
         x = ROIAlign(x, rpn_rois, self.config, self.config.POOL_SIZE)
@@ -164,8 +175,11 @@ class RCNNHead(nn.Module):
         x = x.view(self.config.IMAGES_PER_GPU * roi_number,
                    256, self.config.POOL_SIZE,
                    self.config.POOL_SIZE)
+        #print(x.shape)
         #x = self.roi_align(x, rpn_rois, self.config, self.config.POOL_SIZE)
         #x = crops.view(crops.size(0), -1)
+        x = self.bn1(self.conv1(x))
+        x = x.permute(0, 2, 3, 1).contiguous().view(x.size(0), -1)
         x = F.relu(self.fc1(x), inplace=True)
         x = F.relu(self.fc2(x), inplace=True)
         #x = F.dropout(x, 0.5, training=self.training)
@@ -177,74 +191,27 @@ class RCNNHead(nn.Module):
                                                    roi_number,
                                                    rcnn_class_logits.size()[-1])
 
-        mrcnn_bbox = mrcnn_bbox.view(self.config.IMAGES_PER_GPU,
-                                     roi_number,
-                                     self.config.NUM_CLASSES,
-                                     4)
+        rcnn_bbox = rcnn_bbox.view(self.config.IMAGES_PER_GPU,
+                                   roi_number,
+                                   self.config.NUM_CLASSES,
+                                   4)
 
         return rcnn_class_logits, rcnn_bbox
 
-
-class Crop(nn.Module):
-    def __init__(self, cfg):
-        super(Crop, self).__init__()
-        self.num_scales = len(cfg.rpn_scales)
-        self.crop_size = cfg.crop_size
-        self.sizes = cfg.rpn_base_sizes
-        self.scales = cfg.rpn_scales
-
-        #self.crops = nn.ModuleList()
-        #for l in range(self.num_scales):
-        #    self.crops.append(
-        #        Crop(self.crop_size, self.crop_size, 1 / self.scales[l])
-        #    )
-        #self.crop = RoIAlign()
-
-    def forward(self, fs, proposals):
-        num_proposals = len(proposals)
-
-        ## this is  complicated. we need to decide for a given roi, which of the p0,p1, ..p3 layers to pool from
-        boxes = proposals.detach().data[:, 1:5]
-        sizes = boxes[:, 2:] - boxes[:, :2]
-        sizes = torch.sqrt(sizes[:, 0] * sizes[:, 1])
-        distances = torch.abs(sizes.view(num_proposals, 1).expand(num_proposals, 4) \
-                              - torch.from_numpy(np.array(self.sizes, np.float32)).cuda())
-        min_distances, min_index = distances.min(1)
-
-        rois = proposals.detach().data[:, 0:5]
-        rois = Variable(rois)
-
-        crops = []
-        indices = []
-        for l in range(self.num_scales):
-            index = (min_index == l).nonzero()
-
-            if len(index) > 0:
-                crop = self.crops[l](fs[l], rois[index].view(-1, 5))
-                crops.append(crop)
-                indices.append(index)
-
-        crops = torch.cat(crops, 0)
-        indices = torch.cat(indices, 0).view(-1)
-        crops = crops[torch.sort(indices)[1]]
-        # crops = torch.index_select(crops,0,index)
-
-        return crops
-
-
+#
 # ---------------------------------------------------------------
 # Mask R-CNN
 
 class MaskRCNN(nn.Module):
 
     def __init__(self, config):
-        super(MaskRCnn, self).__init__()
+        super(MaskRCNN, self).__init__()
         self.config = config
         self.__mode = 'train'
         feature_channels = 128
         # define modules (set of layers)
 #        self.feature_net = FeatureNet(cfg, 3, feature_channels)
-        self.feature_net = resnet50()
+        self.feature_net = resnet50().cuda()
         #self.rpn_head = RpnMultiHead(cfg,feature_channels)
         self.rpn = RPN(256, len(self.config.RPN_ANCHOR_RATIOS),
                              self.config.RPN_ANCHOR_STRIDE)
@@ -259,7 +226,7 @@ class MaskRCNN(nn.Module):
                                                 self.config.BACKBONE_STRIDES,
                                                 self.config.RPN_ANCHOR_STRIDE)
         self.anchors = self.anchors.astype(np.float32)
-
+        self.proposal_count = self.config.POST_NMS_ROIS_TRAINING
         # FPN
         self.fpn_c5p5 = nn.Conv2d(
             512 * 4, 256, kernel_size=1, stride=1, padding=0)
@@ -329,6 +296,7 @@ class MaskRCNN(nn.Module):
     def proposal_layer(self, rpn_class, rpn_bbox):
         # handling proposals
         scores = rpn_class[:, :, 1]
+        #print(scores.shape)
         # Box deltas [batch, num_rois, 4]
         deltas_mul = Variable(torch.from_numpy(np.reshape(
             self.config.RPN_BBOX_STD_DEV, [1, 1, 4]).astype(np.float32))).cuda()
@@ -362,6 +330,9 @@ class MaskRCNN(nn.Module):
         refined_anchors_clipped = clip_boxes_graph(refined_anchors, window)
 
         refined_proposals = []
+        scores = scores[:,:,None]
+        #print(scores.data.shape)
+        #print(refined_anchors_clipped.data.shape)
         for i in range(self.config.IMAGES_PER_GPU):
             indices = nms(
                 torch.cat([refined_anchors_clipped.data[i], scores.data[i]], 1), 0.7)
