@@ -184,6 +184,7 @@ class RCNNHead(nn.Module):
         x = F.relu(self.fc2(x), inplace=True)
         #x = F.dropout(x, 0.5, training=self.training)
         rcnn_class_logits = self.class_logits(x)
+        rcnn_probs = F.softmax(rcnn_class_logits, dim=-1)
 
         rcnn_bbox = self.bbox(x)
 
@@ -191,12 +192,16 @@ class RCNNHead(nn.Module):
                                                    roi_number,
                                                    rcnn_class_logits.size()[-1])
 
+        rcnn_probs = rcnn_probs.view(self.config.IMAGES_PER_GPU,
+                                     roi_number,
+                                     rcnn_probs.size()[-1])
+
         rcnn_bbox = rcnn_bbox.view(self.config.IMAGES_PER_GPU,
                                    roi_number,
                                    self.config.NUM_CLASSES,
                                    4)
 
-        return rcnn_class_logits, rcnn_bbox
+        return rcnn_class_logits, rcnn_probs, rcnn_bbox
 
 #
 # ---------------------------------------------------------------
@@ -290,8 +295,12 @@ class MaskRCNN(nn.Module):
         rpn_proposals = self.proposal_layer(rpn_class, rpn_bbox)
 
         # RCNN proposals
-        rcnn_class_logits, rcnn_bbox = self.rcnn_head(self.mrcnn_feature_maps, rpn_proposals)
+        rcnn_class_logits, rcnn_class, rcnn_bbox = self.rcnn_head(self.mrcnn_feature_maps, rpn_proposals)
         rcnn_mask_logits = self.mask_head(self.mrcnn_feature_maps, rpn_proposals)
+
+        return [rpn_class_logits, rpn_class, rpn_bbox, rpn_proposals,
+                rcnn_class_logits, rcnn_class, rcnn_bbox,
+                rcnn_masks_logits]
 
     def proposal_layer(self, rpn_class, rpn_bbox):
         # handling proposals
