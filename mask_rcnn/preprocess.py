@@ -19,5 +19,5 @@ dataset = PrepareDataset(data_dir+'/stage1_train')
 # preprocess training images & generate masks
 for img_id, image, masks in dataset:
     imsave(train_dir + '/images/%s.png' % img_id, image)
-    imsave(train_dir + '/images/%s_mask.png' % img_id, masks)
+    #imsave(train_dir + '/images/%s_mask.png' % img_id, masks)
     np.save(train_dir + '/multi_masks/%s.npy' % img_id, masks)

@@ -96,10 +96,74 @@ def _scale_enum(anchor, scales):
     anchors = _mkanchors(ws, hs, x_ctr, y_ctr)
     return anchors
 
+def make_bases(base_sizes, base_apsect_ratios):
+    bases = []
+    for base_size in base_sizes:
+        for ratio in base_apsect_ratios:
+            w = ratio[0] * base_size
+            h = ratio[1] * base_size
+            rw = round(w/2)
+            rh = round(h/2)
+            base =(-rw, -rh, rw, rh, )
+            bases.append(base)
+
+    bases = np.array(bases,np.float32)
+    return bases
+
+
+def make_windows(bases):
+    windows = []
+    #_, _, H, W = f.size()
+    H = 8
+    W = 8
+    for y, x in itertools.product(range(H),range(W)):
+        cx = x*2
+        cy = y*2
+        for b in bases:
+            x0,y0,x1,y1 = b
+            x0 += cx
+            y0 += cy
+            x1 += cx
+            y1 += cy
+            windows.append([x0,y0,x1,y1])
+
+    windows  = np.array(windows, np.float32)
+    return windows
+
+
+def make_rpn_windows():
+
+    #rpn_windows = []
+    base_sizes = [8, 16, 32, 64]
+    ratios = [(1, 1), (1, 2), (2, 1)]
+    bases   = make_bases(base_sizes, ratios)
+    windows = make_windows(bases)
+
+    #rpn_windows = np.vstack(rpn_windows)
+
+    return windows
+
 if __name__ == '__main__':
-    import time
-    t = time.time()
-    a = generate_anchors()
-    print time.time() - t
-    print a
-    from IPython import embed; embed()
+    import itertools
+    #import time
+    #t = time.time()
+    _anchors = generate_anchors()
+    #print time.time() - t
+    print _anchors.shape
+    _num_anchors = _anchors.shape[0]
+
+    shift_x = np.arange(0, 8) * 2
+    shift_y = np.arange(0, 8) * 2
+    shift_x, shift_y = np.meshgrid(shift_x, shift_y)
+    shifts = np.vstack((shift_x.ravel(), shift_y.ravel(),
+                        shift_x.ravel(), shift_y.ravel())).transpose()
+
+    A = _num_anchors
+    K = shifts.shape[0]
+    anchors = _anchors.reshape((1, A, 4)) + \
+              shifts.reshape((1, K, 4)).transpose((1, 0, 2))
+    anchors = anchors.reshape((K * A, 4))
+
+    print anchors
+    print make_rpn_windows()
+    #from IPython import embed; embed()

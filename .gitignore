@@ -15,3 +15,6 @@
 *.iml
 *.xml
 *.py[cod]
+
+# Atom
+._*
