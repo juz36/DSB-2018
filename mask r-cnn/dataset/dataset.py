@@ -41,12 +41,20 @@ class PrepareDataset(Dataset):
 
         # load mask
         rles = self.__rles_dict[img_id]
-        multi_mask = np.zeros(np.prod(image.shape[0:2]), np.uint8)
+#         multi_mask = np.zeros(np.prod(image.shape[0:2]), np.uint8)
+#         for i, rle in enumerate(rles):
+#             mask_location = rle_decode_location(rle)
+#             for low, high in mask_location:
+#                 multi_mask[low:high] = i+1
+#         multi_mask = multi_mask.reshape(image.shape[1::-1]).T
+        
+        multi_mask = np.zeros((np.prod(image.shape[0:2]), len(rles)), np.uint8)
         for i, rle in enumerate(rles):
             mask_location = rle_decode_location(rle)
             for low, high in mask_location:
-                multi_mask[low:high] = i+1
-        multi_mask = multi_mask.reshape(image.shape[1::-1]).T
+                multi_mask[low:high, i] = 1
+        multi_mask = multi_mask.reshape(image.shape[1::-1]+(len(rles),))
+        multi_mask = multi_mask.transpose(1, 0, 2)
         return img_id, image, multi_mask
 
 
