@@ -54,14 +54,11 @@ def rpn_bbox_loss(target_bbox, rpn_match, rpn_bbox, config):
     return loss
 
 # rcnn head confidence loss
-def rcnn_class_loss(target_class_ids, pred_class_logits, active_class_ids, config):
+def rcnn_class_loss(target_class_ids, pred_class_logits, config):
     """Loss for the classifier head of Mask RCNN.
     target_class_ids: [batch, num_rois]. Integer class IDs. Uses zero
         padding to fill in the array.
     pred_class_logits: [batch, num_rois, num_classes]
-    active_class_ids: [batch, num_classes]. Has a value of 1 for
-        classes that are in the dataset of the image, and 0
-        for classes that are not in the dataset.
     """
 
     # Find predictions of classes that are not in the dataset.
@@ -137,7 +134,7 @@ def total_loss(saved_for_loss, ground_truths, config):
 
     batch_rpn_match, batch_rpn_bbox, \
     batch_gt_class_ids, batch_gt_boxes,\
-    batch_gt_masks, active_class_ids = ground_truths
+    batch_gt_masks = ground_truths
 
 
     rpn_rois = predict_rpn_rois.cpu().data.numpy()
@@ -166,7 +163,7 @@ def total_loss(saved_for_loss, ground_truths, config):
 
     # cls branch loss->classification
     stage2_cls_loss = rcnn_class_loss(
-        batch_mrcnn_class_ids, predict_mrcnn_class_logits, active_class_ids, config)
+        batch_mrcnn_class_ids, predict_mrcnn_class_logits, config)
 
     # mask branch loss
     stage2_mask_loss = mask_loss(

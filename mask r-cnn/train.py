@@ -29,7 +29,7 @@ transform = transforms.Compose([
 ])
 
 # load data
-train_dataset = CellDataset(train_dir, transform=transform)
+train_dataset = CellDataset(train_dir, config, transform=transform)
 train_loader = DataLoader(
     train_dataset,
     batch_size=batch_size,
