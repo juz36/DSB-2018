@@ -48,7 +48,11 @@ class PrepareDataset(Dataset):
 #             for low, high in mask_location:
 #                 multi_mask[low:high] = i+1
 #         multi_mask = multi_mask.reshape(image.shape[1::-1]).T
+<<<<<<< HEAD:mask_rcnn/dataset/dataset.py
 
+=======
+        
+>>>>>>> 5614490269277920b4410aa2fc7c0dffcf5903a9:mask r-cnn/dataset/dataset.py
         multi_mask = np.zeros((np.prod(image.shape[0:2]), len(rles)), np.uint8)
         for i, rle in enumerate(rles):
             mask_location = rle_decode_location(rle)
