@@ -9,6 +9,7 @@ from skimage.color import rgba2rgb
 from skimage.io import imread
 from torch.utils.data import Dataset
 import scipy
+import scipy.ndimage
 
 from dataset.rle import read_train_rles, rle_decode_location
 from utils.path import data_dir
@@ -42,21 +43,24 @@ class PrepareDataset(Dataset):
 
         # load mask
         rles = self.__rles_dict[img_id]
-#         multi_mask = np.zeros(np.prod(image.shape[0:2]), np.uint8)
-#         for i, rle in enumerate(rles):
-#             mask_location = rle_decode_location(rle)
-#             for low, high in mask_location:
-#                 multi_mask[low:high] = i+1
-#         multi_mask = multi_mask.reshape(image.shape[1::-1]).T
 
-        multi_mask = np.zeros((np.prod(image.shape[0:2]), len(rles)), np.uint8)
+        # multi-mask for visualization
+        multi_mask = np.zeros(np.prod(image.shape[0:2]), np.uint8)
         for i, rle in enumerate(rles):
             mask_location = rle_decode_location(rle)
             for low, high in mask_location:
-                multi_mask[low:high, i] = 1
-        multi_mask = multi_mask.reshape(image.shape[1::-1]+(len(rles),))
-        multi_mask = multi_mask.transpose(1, 0, 2)
-        return img_id, image, multi_mask
+                multi_mask[low:high] = i+1
+        multi_mask = multi_mask.reshape(image.shape[1::-1]).T
+
+        # ground truth mask for training
+        gt_mask = np.zeros((np.prod(image.shape[0:2]), len(rles)), np.uint8)
+        for i, rle in enumerate(rles):
+            mask_location = rle_decode_location(rle)
+            for low, high in mask_location:
+                gt_mask[low:high, i] = 1
+        gt_mask = gt_mask.reshape(image.shape[1::-1]+(len(rles),))
+        gt_mask = gt_mask.transpose(1, 0, 2)
+        return img_id, image, multi_mask, gt_mask
 
 
 class CellDataset(Dataset):
@@ -96,18 +100,30 @@ class CellDataset(Dataset):
             min_dim=self.config.IMAGE_MIN_DIM,
             max_dim=self.config.IMAGE_MAX_DIM,
             padding=self.config.IMAGE_PADDING)
-
+        image = image.transpose(2, 0, 1)
+        #print(image.shape)
         if self.__mode == 'train':
             # load mask
-            gt_mask = np.load(self.__img_path + '/%s.npy' % img_id)
+            gt_mask = np.load(self.__img_path + '/multi_masks/%s.npy' % img_id)
             gt_mask = resize_mask(gt_mask, scale, padding)
-            gt_class_ids = np.ones(gt_mask.size(2))
+            gt_class_ids = np.ones(gt_mask.shape[2])
             gt_bbox = extract_bboxes(gt_mask)
             rpn_match, rpn_bbox = build_rpn_targets(image.shape, self.anchors,
                                                     gt_class_ids, gt_bbox, self.config)
+#            print(image.shape)
+#            rpn_match = rpn_match[..., np.newaxis, np.newaxis]
+#            print(rpn_match.shape)
+#            rpn_bbox = rpn_bbox[..., np.newaxis]
+#            print(rpn_bbox.shape)
+#            gt_class_ids = gt_class_ids[..., np.newaxis, np.newaxis]
+#            print(gt_class_ids.shape)
+#            gt_bbox = gt_bbox[..., np.newaxis]
+#            print(gt_bbox.shape)
+#            print(gt_mask.shape)
             return image, [rpn_match, rpn_bbox, gt_class_ids, gt_bbox, gt_mask]
         else:
             return image
+
 
 def build_rpn_targets(image_shape, anchors, gt_class_ids, gt_boxes, config):
     """Given the anchors and GT boxes, compute overlaps and identify positive
@@ -217,6 +233,7 @@ def build_rpn_targets(image_shape, anchors, gt_class_ids, gt_boxes, config):
 
     return rpn_match, rpn_bbox
 
+
 def compute_overlaps(boxes1, boxes2):
     """Computes IoU overlaps between two sets of boxes.
     boxes1, boxes2: [N, (y1, x1, y2, x2)].
@@ -233,6 +250,7 @@ def compute_overlaps(boxes1, boxes2):
         box2 = boxes2[i]
         overlaps[:, i] = compute_iou(box2, boxes1, area2[i], area1)
     return overlaps
+
 
 def compute_iou(box, boxes, box_area, boxes_area):
     """Calculates IoU of the given box with the array of the given boxes.
@@ -252,6 +270,7 @@ def compute_iou(box, boxes, box_area, boxes_area):
     union = box_area + boxes_area[:] - intersection[:]
     iou = intersection / union
     return iou
+
 
 def extract_bboxes(mask):
     """Compute bounding boxes from masks.

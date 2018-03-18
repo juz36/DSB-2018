@@ -1,5 +1,5 @@
 # path
-root_dir = '/media/lzm/DC9458A6945884C4/projects/DSB-2018/mask r-cnn'
+root_dir = '/media/lzm/DC9458A6945884C4/projects/DSB-2018/mask_rcnn'
 data_dir = root_dir + '/data/input'
 utils_dir = root_dir + '/data/utils'
 log_dir = root_dir + '/data/logs'

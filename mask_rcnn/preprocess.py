@@ -1,11 +1,13 @@
 """
+Pre-process dataset
 
 """
 import os
 import numpy as np
 from utils.path import data_dir, train_dir
 from dataset.dataset import PrepareDataset
-from matplotlib.pyplot import imsave
+import matplotlib.pyplot as plt
+import skimage.io as skio
 
 
 # mkdir if not exists
@@ -17,11 +19,7 @@ if not os.path.exists(train_dir + '/multi_masks'):
 dataset = PrepareDataset(data_dir+'/stage1_train')
 
 # preprocess training images & generate masks
-for img_id, image, masks in dataset:
-    imsave(train_dir + '/images/%s.png' % img_id, image)
-<<<<<<< HEAD:mask_rcnn/preprocess.py
-    #imsave(train_dir + '/images/%s_mask.png' % img_id, masks)
-=======
-#    imsave(train_dir + '/images/%s_mask.png' % img_id, masks)
->>>>>>> 5614490269277920b4410aa2fc7c0dffcf5903a9:mask r-cnn/preprocess.py
-    np.save(train_dir + '/multi_masks/%s.npy' % img_id, masks)
+for img_id, image, multi_mask, gt_mask in dataset:
+    skio.imsave(train_dir + '/images/%s.png' % img_id, image)
+    plt.imsave(train_dir + '/images/%s_mask.png' % img_id, multi_mask)
+    np.save(train_dir + '/multi_masks/%s.npy' % img_id, gt_mask)

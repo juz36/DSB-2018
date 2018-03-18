@@ -300,7 +300,7 @@ class MaskRCNN(nn.Module):
 
         return [rpn_class_logits, rpn_class, rpn_bbox, rpn_proposals,
                 rcnn_class_logits, rcnn_class, rcnn_bbox,
-                rcnn_masks_logits]
+                rcnn_mask_logits]
 
     def proposal_layer(self, rpn_class, rpn_bbox):
         # handling proposals
