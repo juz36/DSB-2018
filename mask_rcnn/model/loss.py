@@ -1,11 +1,14 @@
+"""
+Loss functions
+"""
 import torch
 import torch.nn.functional as F
+import scipy
 import numpy as np
 from collections import OrderedDict
+from dataset.dataset import compute_iou
 
-################
-#Loss functions#
-################
+
 # region proposal network confidence loss
 def rpn_class_loss(rpn_match, rpn_class_logits):
     """RPN anchor classifier loss.
@@ -28,10 +31,11 @@ def rpn_class_loss(rpn_match, rpn_class_logits):
     loss = F.cross_entropy(rpn_class_logits, anchor_class, weight=None)
     return loss
 
+
 # region proposal bounding bbox loss
-def rpn_bbox_loss(target_bbox, rpn_match, rpn_bbox, config):
+def rpn_bbox_loss(target_bbox, rpn_match, rpn_bbox):
     """Return the RPN bounding box loss graph.
-    config: the model config object.
+
     target_bbox: [batch, max positive anchors, (dy, dx, log(dh), log(dw))].
         Uses 0 padding to fill in unsed bbox deltas.
     rpn_match: [batch, anchors, 1]. Anchor match type. 1=positive,
@@ -45,17 +49,18 @@ def rpn_bbox_loss(target_bbox, rpn_match, rpn_bbox, config):
     batch_counts = torch.sum(indices.float(), dim=1)
 
     outputs = []
-    for i in range(config.IMAGES_PER_GPU):
-#        print(batch_counts[i].cpu().data.numpy()[0])
+    for i in range(target_bbox.size()[0]):
         outputs.append(target_bbox[torch.cuda.LongTensor([i]), torch.arange(int(batch_counts[i].cpu().data.numpy()[0])).type(torch.cuda.LongTensor)])
 
     target_bbox = torch.cat(outputs, dim=0)
+    target_bbox = target_bbox.view(-1)
 
     loss = F.smooth_l1_loss(rpn_bbox, target_bbox, size_average=True)
     return loss
 
+
 # rcnn head confidence loss
-def rcnn_class_loss(target_class_ids, pred_class_logits, config):
+def rcnn_class_loss(target_class_ids, pred_class_logits):
     """Loss for the classifier head of Mask RCNN.
     target_class_ids: [batch, num_rois]. Integer class IDs. Uses zero
         padding to fill in the array.
@@ -63,7 +68,7 @@ def rcnn_class_loss(target_class_ids, pred_class_logits, config):
     """
 
     # Find predictions of classes that are not in the dataset.
-    pred_class_logits = pred_class_logits.contiguous().view(-1, config.NUM_CLASSES)
+    pred_class_logits = pred_class_logits.contiguous().view(-1, pred_class_logits.size()[-1])
 
     target_class_ids = target_class_ids.contiguous().view(-1).type(torch.cuda.LongTensor)
     # Loss
@@ -79,6 +84,7 @@ def rcnn_class_loss(target_class_ids, pred_class_logits, config):
 #    loss = tf.reduce_sum(loss) / tf.reduce_sum(pred_active)
     return loss
 
+
 # rcnn head bbox loss
 def rcnn_bbox_loss(target_bbox, target_class_ids, pred_bbox):
     """Loss for Mask R-CNN bounding box refinement.
@@ -89,7 +95,8 @@ def rcnn_bbox_loss(target_bbox, target_class_ids, pred_bbox):
     # Reshape to merge batch and roi dimensions for simplicity.
     target_class_ids = target_class_ids.contiguous().view(-1)
     target_bbox = target_bbox.contiguous().view(-1, 4)
-    pred_bbox = pred_bbox.contiguous().view(-1, pred_bbox.size()[2], 4)
+#    pred_bbox = pred_bbox.contiguous().view(-1, pred_bbox.size()[2], 4)
+    pred_bbox = pred_bbox.contiguous().view(-1, 4)
 #    print(target_class_ids)
 
     # Only positive ROIs contribute to the loss. And only
@@ -108,6 +115,7 @@ def rcnn_bbox_loss(target_bbox, target_class_ids, pred_bbox):
     loss = F.smooth_l1_loss(pred_bbox, target_bbox, size_average=True)
     return loss
 
+
 # rcnn head mask loss
 def mask_loss(target_masks, target_class_ids, pred_masks_logits):
     """Mask binary cross-entropy loss for the masks head.
@@ -123,32 +131,28 @@ def mask_loss(target_masks, target_class_ids, pred_masks_logits):
     loss = F.binary_cross_entropy_with_logits(pred_masks_logits, target_masks)
     return loss
 
+
 # total loss
 def total_loss(saved_for_loss, ground_truths, config):
-    #create dict to save loss for visualization
+    # create dict to save loss for visualization
     saved_for_log = OrderedDict()
-    #unpack saved log
-    predict_rpn_class_logits, predict_rpn_class,\
-    predict_rpn_bbox, predict_rpn_rois,\
-    predict_mrcnn_class_logits, predict_mrcnn_class,\
-    predict_mrcnn_bbox, predict_mrcnn_masks_logits = saved_for_loss
-
-    batch_rpn_match, batch_rpn_bbox, \
-    batch_gt_class_ids, batch_gt_boxes,\
-    batch_gt_masks = ground_truths
-    batch_gt_class_ids = batch_gt_class_ids.int().numpy()
-    batch_gt_boxes = batch_gt_boxes.numpy()
+    # unpack saved variables
+    predict_rpn_class_logits, predict_rpn_class, predict_rpn_bbox, predict_rpn_rois, predict_mrcnn_class_logits, predict_mrcnn_class, predict_mrcnn_bbox, predict_mrcnn_masks_logits = saved_for_loss
+    # unpack gts (numpy)
+    batch_rpn_match, batch_rpn_bbox, batch_gt_class_ids, batch_gt_boxes, batch_gt_masks = ground_truths
 
     rpn_rois = predict_rpn_rois.cpu().data.numpy()
     rpn_rois = rpn_rois[:, :, [1, 0, 3, 2]]
     batch_rois, batch_mrcnn_class_ids, batch_mrcnn_bbox, batch_mrcnn_mask = stage2_target(rpn_rois, batch_gt_class_ids, batch_gt_boxes, batch_gt_masks, config)
 
-#        print(np.sum(batch_mrcnn_class_ids))
+    # convert numpy to variables
+    batch_rpn_match = torch.from_numpy(batch_rpn_match).float().cuda()
+    batch_rpn_bbox = torch.from_numpy(batch_rpn_bbox).float().cuda()
     batch_mrcnn_mask = batch_mrcnn_mask.transpose(0, 1, 4, 2, 3)
-    batch_mrcnn_class_ids = to_variable(
-        batch_mrcnn_class_ids).cuda()
-    batch_mrcnn_bbox = to_variable(batch_mrcnn_bbox).cuda()
-    batch_mrcnn_mask = to_variable(batch_mrcnn_mask).cuda()
+    batch_mrcnn_class_ids = torch.from_numpy(
+        batch_mrcnn_class_ids).float().cuda()
+    batch_mrcnn_bbox = torch.from_numpy(batch_mrcnn_bbox).float().cuda()
+    batch_mrcnn_mask = torch.from_numpy(batch_mrcnn_mask).float().cuda()
 
 #        print(batch_mrcnn_class_ids)
     # RPN branch loss->classification
@@ -157,7 +161,7 @@ def total_loss(saved_for_loss, ground_truths, config):
 
     # RPN branch loss->bbox
     rpn_reg_loss = rpn_bbox_loss(
-        batch_rpn_bbox, batch_rpn_match, predict_rpn_bbox, config)
+        batch_rpn_bbox, batch_rpn_match, predict_rpn_bbox)
 
     # bbox branch loss->bbox
     stage2_reg_loss = rcnn_bbox_loss(
@@ -165,21 +169,22 @@ def total_loss(saved_for_loss, ground_truths, config):
 
     # cls branch loss->classification
     stage2_cls_loss = rcnn_class_loss(
-        batch_mrcnn_class_ids, predict_mrcnn_class_logits, config)
+        batch_mrcnn_class_ids, predict_mrcnn_class_logits)
 
     # mask branch loss
     stage2_mask_loss = mask_loss(
         batch_mrcnn_mask, batch_mrcnn_class_ids, predict_mrcnn_masks_logits)
 
     total_loss = rpn_cls_loss + rpn_reg_loss + stage2_cls_loss + stage2_reg_loss + stage2_mask_loss
-    saved_for_log['rpn_cls_loss'] = rpn_cls_loss.data[0]
-    saved_for_log['rpn_reg_loss'] = rpn_reg_loss.data[0]
-    saved_for_log['stage2_cls_loss'] = stage2_cls_loss.data[0]
-    saved_for_log['stage2_reg_loss'] = stage2_reg_loss.data[0]
-    saved_for_log['stage2_mask_loss'] = stage2_mask_loss.data[0]
-    saved_for_log['total_loss'] = total_loss.data[0]
+    saved_for_log['rpn_cls_loss'] = rpn_cls_loss.item()
+    saved_for_log['rpn_reg_loss'] = rpn_reg_loss.item()
+    saved_for_log['stage2_cls_loss'] = stage2_cls_loss.item()
+    saved_for_log['stage2_reg_loss'] = stage2_reg_loss.item()
+    saved_for_log['stage2_mask_loss'] = stage2_mask_loss.item()
+    saved_for_log['total_loss'] = total_loss.item()
 
     return total_loss, saved_for_log
+
 
 def stage2_target(rpn_rois, gt_class_ids, gt_boxes, gt_masks, config):
 
@@ -188,10 +193,9 @@ def stage2_target(rpn_rois, gt_class_ids, gt_boxes, gt_masks, config):
     batch_mrcnn_bbox = []
     batch_mrcnn_mask = []
 
-    for i in range(config.IMAGES_PER_GPU):
-        rois, mrcnn_class_ids, mrcnn_bbox, mrcnn_mask =\
-        build_detection_targets(
-        rpn_rois[i], gt_class_ids[i], gt_boxes[i], gt_masks[i], config)
+    for i in range(len(gt_boxes)):
+        rois, mrcnn_class_ids, mrcnn_bbox, mrcnn_mask = \
+            build_detection_targets(rpn_rois[i], gt_class_ids[i], gt_boxes[i], gt_masks[i], config)
 
         batch_rois.append(rois)
         batch_mrcnn_class_ids.append(mrcnn_class_ids)
@@ -203,6 +207,7 @@ def stage2_target(rpn_rois, gt_class_ids, gt_boxes, gt_masks, config):
     batch_mrcnn_bbox = np.array(batch_mrcnn_bbox)
     batch_mrcnn_mask = np.array(batch_mrcnn_mask)
     return batch_rois, batch_mrcnn_class_ids, batch_mrcnn_bbox, batch_mrcnn_mask
+
 
 def build_detection_targets(rpn_rois, gt_class_ids, gt_boxes, gt_masks, config):
     """Generate targets for training Stage 2 classifier and mask heads.
@@ -357,6 +362,7 @@ def build_detection_targets(rpn_rois, gt_class_ids, gt_boxes, gt_masks, config):
         masks[i, :, :, class_id] = mask
 
     return rois, roi_gt_class_ids, bboxes, masks
+
 
 def box_refinement(box, gt_box):
     """Compute refinement needed to transform box to gt_box.

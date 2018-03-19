@@ -21,6 +21,7 @@ def log2_graph(x):
     """Implementatin of Log2. pytorch doesn't have a native implemenation."""
     return torch.div(torch.log(x), math.log(2.))
 
+
 def ROIAlign(feature_maps, rois, config, pool_size, mode='bilinear'):
     """Implements ROI Align on the features.
     Params:
@@ -101,6 +102,8 @@ def ROIAlign(feature_maps, rois, config, pool_size, mode='bilinear'):
                256, pool_size, pool_size)
     pooled = Variable(pooled).cuda()
     return pooled
+
+
 # ---------------------------------------------------------------
 # Heads
 
@@ -203,11 +206,15 @@ class RCNNHead(nn.Module):
 
         return rcnn_class_logits, rcnn_probs, rcnn_bbox
 
+
 #
 # ---------------------------------------------------------------
 # Mask R-CNN
 
 class MaskRCNN(nn.Module):
+    """
+    Mask R-CNN model
+    """
 
     def __init__(self, config):
         super(MaskRCNN, self).__init__()
@@ -250,7 +257,6 @@ class MaskRCNN(nn.Module):
         self.scale_ratios = [4, 8, 16, 32]
         self.fpn_p6 = nn.MaxPool2d(
             kernel_size=1, stride=2, padding=0, ceil_mode=False)
-
 
     def forward(self, x):
         # Extract features
@@ -297,6 +303,7 @@ class MaskRCNN(nn.Module):
         # RCNN proposals
         rcnn_class_logits, rcnn_class, rcnn_bbox = self.rcnn_head(self.mrcnn_feature_maps, rpn_proposals)
         rcnn_mask_logits = self.mask_head(self.mrcnn_feature_maps, rpn_proposals)
+        # <todo> mask nms
 
         return [rpn_class_logits, rpn_class, rpn_bbox, rpn_proposals,
                 rcnn_class_logits, rcnn_class, rcnn_bbox,
@@ -315,7 +322,6 @@ class MaskRCNN(nn.Module):
 
         scores, ix = torch.topk(scores, pre_nms_limit, dim=-1,
                                 largest=True, sorted=True)
-
 
         ix = torch.unsqueeze(ix, 2)
         ix = torch.cat([ix, ix, ix, ix], dim=2)
@@ -358,6 +364,7 @@ class MaskRCNN(nn.Module):
 
         return rpn_rois
 
+
 def apply_box_deltas_graph(boxes, deltas):
     """Applies the given deltas to the given boxes.
     boxes: [N, 4] where each row is y1, x1, y2, x2
@@ -380,6 +387,7 @@ def apply_box_deltas_graph(boxes, deltas):
     x2 = x1 + width
     result = [y1, x1, y2, x2]
     return result
+
 
 def clip_boxes_graph(boxes, window):
     """

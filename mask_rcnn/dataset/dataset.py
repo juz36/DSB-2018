@@ -7,7 +7,9 @@ import numpy as np
 import pandas as pd
 from skimage.color import rgba2rgb
 from skimage.io import imread
+import torch
 from torch.utils.data import Dataset
+from torch.autograd import Variable
 import scipy
 import scipy.ndimage
 
@@ -82,7 +84,7 @@ class CellDataset(Dataset):
 
         # load image_id from csv
         train_labels = pd.read_csv(rles_path)
-        img_ids = sorted(train_labels["ImageId"])
+        img_ids = sorted(set(train_labels["ImageId"]))
         self.__img_ids = img_ids
 
     def __len__(self):
@@ -101,28 +103,34 @@ class CellDataset(Dataset):
             max_dim=self.config.IMAGE_MAX_DIM,
             padding=self.config.IMAGE_PADDING)
         image = image.transpose(2, 0, 1)
-        #print(image.shape)
+
         if self.__mode == 'train':
             # load mask
             gt_mask = np.load(self.__img_path + '/multi_masks/%s.npy' % img_id)
+            gt_mask = gt_mask.astype(np.bool_, copy=False)
             gt_mask = resize_mask(gt_mask, scale, padding)
-            gt_class_ids = np.ones(gt_mask.shape[2])
+            gt_class_ids = np.ones(gt_mask.shape[2], dtype=np.int32)
             gt_bbox = extract_bboxes(gt_mask)
             rpn_match, rpn_bbox = build_rpn_targets(image.shape, self.anchors,
                                                     gt_class_ids, gt_bbox, self.config)
-#            print(image.shape)
-#            rpn_match = rpn_match[..., np.newaxis, np.newaxis]
-#            print(rpn_match.shape)
-#            rpn_bbox = rpn_bbox[..., np.newaxis]
-#            print(rpn_bbox.shape)
-#            gt_class_ids = gt_class_ids[..., np.newaxis, np.newaxis]
-#            print(gt_class_ids.shape)
-#            gt_bbox = gt_bbox[..., np.newaxis]
-#            print(gt_bbox.shape)
-#            print(gt_mask.shape)
-            return image, [rpn_match, rpn_bbox, gt_class_ids, gt_bbox, gt_mask]
+
+            return image, rpn_match, rpn_bbox, gt_class_ids, gt_bbox, gt_mask
         else:
             return image
+
+
+def train_collate(batch):
+
+    batch_size = len(batch)
+
+    imgs = torch.stack([torch.from_numpy(batch[b][0])for b in range(batch_size)], 0)
+    rpn_matchs = np.stack([batch[b][1]for b in range(batch_size)], 0)
+    rpn_bboxs = np.stack([batch[b][2]for b in range(batch_size)], 0)
+    gt_class_ids = [batch[b][3]for b in range(batch_size)]
+    gt_bboxs = [batch[b][4]for b in range(batch_size)]
+    gt_masks = [batch[b][5]for b in range(batch_size)]
+
+    return imgs, [rpn_matchs, rpn_bboxs, gt_class_ids, gt_bboxs, gt_masks]
 
 
 def build_rpn_targets(image_shape, anchors, gt_class_ids, gt_boxes, config):
@@ -137,7 +145,7 @@ def build_rpn_targets(image_shape, anchors, gt_class_ids, gt_boxes, config):
     rpn_bbox: [N, (dy, dx, log(dh), log(dw))] Anchor bbox deltas.
     """
     # RPN Match: 1 = positive anchor, -1 = negative anchor, 0 = neutral
-    rpn_match = np.zeros([anchors.shape[0]], dtype=np.int32)
+    rpn_match = np.zeros([anchors.shape[0], 1], dtype=np.int32)
     # RPN bounding boxes: [max anchors per image, (dy, dx, log(dh), log(dw))]
     rpn_bbox = np.zeros((config.RPN_TRAIN_ANCHORS_PER_IMAGE, 4))
 
@@ -294,7 +302,7 @@ def extract_bboxes(mask):
             # resizing or cropping. Set bbox to zeros
             x1, x2, y1, y2 = 0, 0, 0, 0
         boxes[i] = np.array([y1, x1, y2, x2])
-    return boxes.astype(np.int32)
+    return boxes.astype(np.int32, copy=False)
 
 
 def resize_image(image, min_dim=None, max_dim=None, padding=False):

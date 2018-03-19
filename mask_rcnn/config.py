@@ -33,7 +33,7 @@ class Config(object):
     # handle 2 images of 1024x1024px.
     # Adjust based on your GPU memory and image sizes. Use the highest
     # number that your GPU can handle for best performance.
-    IMAGES_PER_GPU = 1
+    IMAGES_PER_GPU = 2
 
     # Number of training steps per epoch
     # This doesn't need to match the size of the training set. Tensorboard
@@ -76,8 +76,8 @@ class Config(object):
     RPN_TRAIN_ANCHORS_PER_IMAGE = 256
 
     # ROIs kept after non-maximum supression (training and inference)
-    POST_NMS_ROIS_TRAINING = 500
-    POST_NMS_ROIS_INFERENCE = 500
+    POST_NMS_ROIS_TRAINING = 200
+    POST_NMS_ROIS_INFERENCE = 200
 
     # If enabled, resizes instance masks to a smaller size to reduce
     # memory load. Recommended when using high-resolution images.
@@ -110,9 +110,6 @@ class Config(object):
     POOL_SIZE = 7
     MASK_POOL_SIZE = 14
     MASK_SHAPE = [28, 28]
-
-    # Maximum number of ground truth instances to use in one image
-    MAX_GT_INSTANCES = 100
 
     # Bounding box refinement standard deviation for RPN and final detections.
     RPN_BBOX_STD_DEV = np.array([0.1, 0.1, 0.2, 0.2])

@@ -168,6 +168,7 @@ class RPN(nn.Module):
 
         return rpn_labels, rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_outside_weights
 
+
 def make_anchors(features):
 
     base_sizes = [8, 16, 32, 64]
