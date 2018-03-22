@@ -24,6 +24,30 @@ def generate_anchors(base_size=16, ratios=[0.5, 1, 2],
                          for i in xrange(ratio_anchors.shape[0])])
     return anchors
 
+def _ratio_enum(anchor, ratios):
+    """
+    Enumerate a set of anchors for each aspect ratio wrt an anchor.
+    """
+
+    w, h, x_ctr, y_ctr = _whctrs(anchor)
+    size = w * h
+    size_ratios = size / ratios
+    ws = np.round(np.sqrt(size_ratios))
+    hs = np.round(ws * ratios)
+    anchors = _mkanchors(ws, hs, x_ctr, y_ctr)
+    return anchors
+
+def _scale_enum(anchor, scales):
+    """
+    Enumerate a set of anchors for each scale wrt an anchor.
+    """
+
+    w, h, x_ctr, y_ctr = _whctrs(anchor)
+    ws = w * scales
+    hs = h * scales
+    anchors = _mkanchors(ws, hs, x_ctr, y_ctr)
+    return anchors
+
 '''
 def generate_anchors(scales, ratios, shape, feature_stride, anchor_stride):
     """
