@@ -11,7 +11,7 @@ import numpy as np
 from model.lib.bbox.overlap import bbox_overlaps_batch
 from model.lib.bbox.transform import bbox_transform_batch, clip_boxes, clip_boxes_batch
 from model.loss import smooth_l1_loss
-from model.lib.bbox.generate_anchors import generate_pyramid_anchors
+from model.lib.bbox.generate_anchors import generate_anchors
 from model.lib.bbox.nms import torch_nms as nms
 
 # ---------------------------------------------------------------
@@ -89,7 +89,7 @@ class RPN(nn.Module):
 
         rpn_cls_prob_reshape = F.softmax(rpn_cls_score_reshape)
         rpn_cls_prob = self.reshape(rpn_cls_prob_reshape, self.score_out)
-
+        print(rpn_cls_prob.shape)
         # rpn boxes
         rpn_bbox_pred = self.bbox_conv(rpn_conv)
 
@@ -153,8 +153,18 @@ class ProposalLayer(nn.Module):
                                            config.BACKBONE_SHAPES,
                                            config.BACKBONE_STRIDES,
                                            config.RPN_ANCHOR_STRIDE)
-        self._anchors = torch.from_numpy(anchors).float()
-        self._num_anchors = self._anchors.size(0)
+        self._anchors = []
+        for i in range(len(config.RPN_ANCHOR_SCALES)):
+            self._anchors.append(generate_anchors(config.RPN_ANCHOR_SCALES[i],
+                                                  config.RPN_ANCHOR_RATIOS,
+                                                  config.BACKNONE_SHAPES[i],
+                                                  config.BACKBONE_STRIDES[i],
+                                                  config.RPN_ANCHOR_STRIDE))
+        self._anchors = torch.from_numpy(self._anchors).float()
+        self._num_anchors = []
+        for i in range(len(config.RPN_ANCHOR_SCALES)):
+            self._num_anchors.append(self._anchors[i].size(0))
+        self._num_anchors = torch.from_numpy(self._num_anchors).int()
 
         # rois blob: holds R regions of interest, each is a 5-tuple
         # (n, x1, y1, x2, y2) specifying an image batch index n and a
@@ -165,7 +175,7 @@ class ProposalLayer(nn.Module):
         # if len(top) > 1:
         #     top[1].reshape(1, 1, 1, 1)
 
-    def forward(self, input):
+    def forward(self, input, level):
 
         # Algorithm:
         #
@@ -183,7 +193,7 @@ class ProposalLayer(nn.Module):
 
         # the first set of _num_anchors channels are bg probs
         # the second set are the fg probs
-        scores = input[0][:, self._num_anchors:, :, :]
+        scores = input[0][:, self._num_anchors[level]:, :, :]
         bbox_deltas = input[1]
 
         pre_nms_topN  = self.config.PRE_NMS_ROIS_TRAINING
@@ -201,7 +211,7 @@ class ProposalLayer(nn.Module):
                                   shift_x.ravel(), shift_y.ravel())).transpose())
         shifts = shifts.contiguous().type_as(scores).float()
 
-        A = self._num_anchors
+        A = self._num_anchors[level]
         K = shifts.size(0)
 
         self._anchors = self._anchors.type_as(scores)

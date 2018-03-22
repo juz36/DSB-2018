@@ -259,6 +259,9 @@ class MaskRCNN(nn.Module):
         rpn_class_outputs = []
         rpn_bbox_outputs = []
         # RPN proposals
+        for i in range(len(rpn_feature_maps)):
+            print(self.config.BACKBONE_SHAPES[i])
+            print(rpn_feature_maps[i].shape)
         for feature in rpn_feature_maps:
             rois, rpn_cls_loss, rpn_bbox_loss = self.rpn(feature, gt_boxes)
             rpn_rois_outputs.append(rois)
