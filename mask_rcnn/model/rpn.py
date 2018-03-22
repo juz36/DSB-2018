@@ -322,11 +322,11 @@ class AnchorTargetLayer(nn.Module):
                                                   config.BACKBONE_SHAPES[i],
                                                   config.BACKBONE_STRIDES[i],
                                                   config.RPN_ANCHOR_STRIDE))
-        self._anchors = torch.from_numpy(self._anchors).float()
+        self._anchors = torch.FloatTensor(self._anchors)
         self._num_anchors = []
         for i in range(len(config.RPN_ANCHOR_SCALES)):
             self._num_anchors.append(self._anchors[i].size(0))
-        self._num_anchors = torch.from_numpy(self._num_anchors).int()
+        self._num_anchors = torch.IntTensor(self._num_anchors)
 
         # allow boxes to sit over the edge by a small amount
         self._allowed_border = 0  # default is 0
