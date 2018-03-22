@@ -23,6 +23,12 @@ def torch_nms(dets, thresh):
         return keep[:num_out[0]]
 
     else:
+        keep = dets.new(dets.size(0), 1).zero_().int()
+    	num_out = dets.new(1).zero_().int()
+    	nms.nms_cuda(keep, dets, num_out, thresh)
+    	keep = keep[:num_out[0]]
+    	return keep
+        '''
         x1 = dets[:, 0]
         y1 = dets[:, 1]
         x2 = dets[:, 2]
@@ -39,3 +45,4 @@ def torch_nms(dets, thresh):
         _backend.gpu_nms(keep, num_out, dets, thresh)
 
         return order[keep[:num_out[0]].cuda()].contiguous()
+        '''
