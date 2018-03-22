@@ -11,6 +11,7 @@ import skimage.io
 #  Anchors
 ############################################################
 
+
 def generate_anchors(scales, ratios, shape, feature_stride, anchor_stride):
     """
     scales: 1D array of anchor sizes in pixels. Example: [32, 64, 128]

@@ -33,7 +33,7 @@ class Config(object):
     # handle 2 images of 1024x1024px.
     # Adjust based on your GPU memory and image sizes. Use the highest
     # number that your GPU can handle for best performance.
-    IMAGES_PER_GPU = 1
+    IMAGES_PER_GPU = 2
 
     # Number of training steps per epoch
     # This doesn't need to match the size of the training set. Tensorboard
@@ -63,10 +63,12 @@ class Config(object):
     # A value of 1 represents a square anchor, and 0.5 is a wide anchor
     RPN_ANCHOR_RATIOS = [0.5, 1, 2]
 
+    '''
     # Anchor stride
     # If 1 then anchors are created for each cell in the backbone feature map.
     # If 2, then anchors are created for every other cell, and so on.
     RPN_ANCHOR_STRIDE = 1
+    '''
 
     # Non-max suppression threshold to filter RPN proposals.
     # You can reduce this during training to generate more propsals.
@@ -76,8 +78,9 @@ class Config(object):
     RPN_TRAIN_ANCHORS_PER_IMAGE = 256
 
     # ROIs kept after non-maximum supression (training and inference)
-    POST_NMS_ROIS_TRAINING = 500
-    POST_NMS_ROIS_INFERENCE = 500
+    PRE_NMS_ROIS_TRAINING = 6000
+    POST_NMS_ROIS_TRAINING = 200
+    POST_NMS_ROIS_INFERENCE = 200
 
     # If enabled, resizes instance masks to a smaller size to reduce
     # memory load. Recommended when using high-resolution images.
@@ -111,12 +114,35 @@ class Config(object):
     MASK_POOL_SIZE = 14
     MASK_SHAPE = [28, 28]
 
-    # Maximum number of ground truth instances to use in one image
-    MAX_GT_INSTANCES = 100
-
     # Bounding box refinement standard deviation for RPN and final detections.
     RPN_BBOX_STD_DEV = np.array([0.1, 0.1, 0.2, 0.2])
     BBOX_STD_DEV = np.array([0.1, 0.1, 0.2, 0.2])
+
+    ### TODO: For Proposal Target Layer ###
+    BBOX_NORMALIZE_TARGETS = True
+    BBOX_NORMALIZE_TARGETS_PRECOMPUTED = True
+    RPN_BBOX_MEAN = np.array([0.0, 0.0, 0.0, 0.0])
+    RPN_BBOX_INSIDE_WEIGHTS = np.array([1.0, 1.0, 1.0, 1.0])
+
+    ### TODO: Overlap threshold for background
+    BG_THRESH_HI = 0.5
+    BG_THRESH_LO = 0.1
+
+    ### TODO: For Anchor Target Layer
+    # If an anchor statisfied by positive and negative conditions set to negative
+    RPN_CLOBBER_POSITIVES = False
+    # IOU < thresh: negative example
+    RPN_NEGATIVE_OVERLAP = 0.3
+    # IOU >= thresh: positive example
+    RPN_POSITIVE_OVERLAP = 0.7
+    # Give the positive RPN examples weight of p * 1 / {num positives}
+    # and give negatives a weight of (1 - p)
+    # Set to -1.0 to use uniform example weighting
+    RPN_POSITIVE_WEIGHT = -1.0
+
+    ### TODO: For Proposal Layer
+    # Proposal height and width both need to be greater than RPN_MIN_SIZE (at orig image scale)
+    RPN_MIN_SIZE = 4
 
     # Max number of final detections
     DETECTION_MAX_INSTANCES = 100
