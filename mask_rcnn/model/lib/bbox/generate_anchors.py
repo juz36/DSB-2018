@@ -11,7 +11,20 @@ import skimage.io
 #  Anchors
 ############################################################
 
+def generate_anchors(base_size=16, ratios=[0.5, 1, 2],
+                     scales=2**np.arange(3, 6)):
+    """
+    Generate anchor (reference) windows by enumerating aspect ratios X
+    scales wrt a reference (0, 0, 15, 15) window.
+    """
 
+    base_anchor = np.array([1, 1, base_size, base_size]) - 1
+    ratio_anchors = _ratio_enum(base_anchor, ratios)
+    anchors = np.vstack([_scale_enum(ratio_anchors[i, :], scales)
+                         for i in xrange(ratio_anchors.shape[0])])
+    return anchors
+
+'''
 def generate_anchors(scales, ratios, shape, feature_stride, anchor_stride):
     """
     scales: 1D array of anchor sizes in pixels. Example: [32, 64, 128]
@@ -49,8 +62,9 @@ def generate_anchors(scales, ratios, shape, feature_stride, anchor_stride):
     boxes = np.concatenate([box_centers - 0.5 * box_sizes,
                             box_centers + 0.5 * box_sizes], axis=1)
     return boxes
+'''
 
-
+'''
 def generate_pyramid_anchors(scales, ratios, feature_shapes, feature_strides,
                              anchor_stride):
     """Generate anchors at different levels of a feature pyramid. Each scale
@@ -69,3 +83,4 @@ def generate_pyramid_anchors(scales, ratios, feature_shapes, feature_strides,
         anchors.append(generate_anchors(scales[i], ratios, feature_shapes[i],
                                         feature_strides[i], anchor_stride))
     return np.concatenate(anchors, axis=0)
+'''

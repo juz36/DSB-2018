@@ -73,9 +73,7 @@ def bbox_transform_inv(boxes, deltas, batch_size):
     dy = deltas[:, :, 1::4]
     dw = deltas[:, :, 2::4]
     dh = deltas[:, :, 3::4]
-    print(dx.shape)
-    print(widths.shape)
-    print(ctr_x.shape)
+
     pred_ctr_x = dx * widths.unsqueeze(2) + ctr_x.unsqueeze(2)
     pred_ctr_y = dy * heights.unsqueeze(2) + ctr_y.unsqueeze(2)
     pred_w = torch.exp(dw) * widths.unsqueeze(2)
