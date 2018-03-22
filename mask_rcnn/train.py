@@ -53,11 +53,12 @@ for epoch in range(num_epoch):
     for i, (imgs, gts) in enumerate(train_loader):
         imgs = imgs.float().cuda()
         data_time = time.time() - end
+        gt_class_ids, gt_boxes, gt_masks = gts
 
         # compute loss
-        logits = model.forward(imgs)
+        logits = model.forward(imgs, gt_boxes, gt_masks)
 
-        loss, saved_for_log = total_loss(logits, gts, config)
+        #loss, saved_for_log = total_loss(logits, gts, config)
 
         # learn & update params
         optimizer.zero_grad()
@@ -88,4 +89,3 @@ for epoch in range(num_epoch):
                 mask=mask_loss,
                 rcnn=rcnn_loss))
             running_loss = 0
-

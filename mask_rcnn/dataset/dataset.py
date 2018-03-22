@@ -114,7 +114,7 @@ class CellDataset(Dataset):
             rpn_match, rpn_bbox = build_rpn_targets(image.shape, self.anchors,
                                                     gt_class_ids, gt_bbox, self.config)
 
-            return image, rpn_match, rpn_bbox, gt_class_ids, gt_bbox, gt_mask
+            return image, gt_class_ids, gt_bbox, gt_mask
         else:
             return image
 
@@ -124,11 +124,11 @@ def train_collate(batch):
     batch_size = len(batch)
 
     imgs = torch.stack([torch.from_numpy(batch[b][0])for b in range(batch_size)], 0)
-    rpn_matchs = np.stack([batch[b][1]for b in range(batch_size)], 0)
-    rpn_bboxs = np.stack([batch[b][2]for b in range(batch_size)], 0)
-    gt_class_ids = [batch[b][3]for b in range(batch_size)]
-    gt_bboxs = [batch[b][4]for b in range(batch_size)]
-    gt_masks = [batch[b][5]for b in range(batch_size)]
+    #rpn_matchs = np.stack([batch[b][1]for b in range(batch_size)], 0)
+    #rpn_bboxs = np.stack([batch[b][2]for b in range(batch_size)], 0)
+    gt_class_ids = [batch[b][1]for b in range(batch_size)]
+    gt_bboxs = [batch[b][2]for b in range(batch_size)]
+    gt_masks = [batch[b][3]for b in range(batch_size)]
 
     return imgs, [rpn_matchs, rpn_bboxs, gt_class_ids, gt_bboxs, gt_masks]
 

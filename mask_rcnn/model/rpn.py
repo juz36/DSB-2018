@@ -78,7 +78,7 @@ class RPN(nn.Module):
         self.rpn_cls_loss = 0
         self.rpn_bbox_loss = 0
 
-    def forward(self, x, im_info, gt_boxes=None, num_boxes=None):
+    def forward(self, x, gt_boxes=None):
         batch_size = x.size(0)
 
         rpn_conv = self.rpn_conv(x)
@@ -94,13 +94,13 @@ class RPN(nn.Module):
         rpn_bbox_pred = self.bbox_conv(rpn_conv)
 
         # proposal layer
-        rois = self.RPN_proposal((rpn_cls_prob.data, rpn_bbox_pred.data, im_info))
+        rois = self.RPN_proposal((rpn_cls_prob.data, rpn_bbox_pred.data))
 
         self.rpn_cls_loss = 0
         self.rpn_bbox_loss = 0
 
         if self.training:
-            rpn_data = self.RPN_anchor_target((rpn_cls_score.data, gt_boxes, im_info, num_boxes))
+            rpn_data = self.RPN_anchor_target((rpn_cls_score.data, gt_boxes))
 
             # classification loss
             rpn_cls_score = rpn_cls_score_reshape.permute(0, 2, 3, 1).contiguous().view(batch_size, -1, 2)
@@ -185,7 +185,6 @@ class ProposalLayer(nn.Module):
         # the second set are the fg probs
         scores = input[0][:, self._num_anchors:, :, :]
         bbox_deltas = input[1]
-        im_info = input[2]
 
         pre_nms_topN  = self.config.PRE_NMS_ROIS_TRAINING
         post_nms_topN = self.config.POST_NMS_ROIS_TRAINING
@@ -224,7 +223,7 @@ class ProposalLayer(nn.Module):
         proposals = bbox_transform_inv(anchors, bbox_deltas, batch_size)
 
         # 2. clip predicted boxes to image
-        proposals = clip_boxes(proposals, im_info, batch_size)
+        proposals = clip_boxes(proposals, self.config.IMAGE_MAX_DIM, batch_size)
         # proposals = clip_boxes_batch(proposals, im_info, batch_size)
 
         # assign the score to 0 if it's non keep.
@@ -319,8 +318,6 @@ class AnchorTargetLayer(nn.Module):
 
         rpn_cls_score = input[0]
         gt_boxes = input[1]
-        im_info = input[2]
-        num_boxes = input[3]
 
         # map of shape (..., H, W)
         height, width = rpn_cls_score.size(2), rpn_cls_score.size(3)
@@ -346,8 +343,8 @@ class AnchorTargetLayer(nn.Module):
 
         keep = ((all_anchors[:, 0] >= -self._allowed_border) &
                 (all_anchors[:, 1] >= -self._allowed_border) &
-                (all_anchors[:, 2] < long(im_info[0][1]) + self._allowed_border) &
-                (all_anchors[:, 3] < long(im_info[0][0]) + self._allowed_border))
+                (all_anchors[:, 2] < long(self.config.IMAGE_MAX_DIM) + self._allowed_border) &
+                (all_anchors[:, 3] < long(self.config.IMAGE_MAX_DIM) + self._allowed_border))
 
         inds_inside = torch.nonzero(keep).view(-1)
 

@@ -245,7 +245,7 @@ class MaskRCNN(nn.Module):
         self.rcnn_bbox_loss = 0
         self.mask_loss = 0
 
-    def forward(self, x, im_info, gt_boxes, num_boxes):
+    def forward(self, x, gt_boxes, gt_masks):
         # Extract features
         C1, C2, C3, C4, C5 = self.feature_net(x)
         P2, P3, P4, P5, P6 = self.fpn(C1, C2, C3, C4, C5)
@@ -260,7 +260,7 @@ class MaskRCNN(nn.Module):
         rpn_bbox_outputs = []
         # RPN proposals
         for feature in rpn_feature_maps:
-            rois, rpn_cls_loss, rpn_bbox_loss = self.rpn(feature, im_info, gt_boxes, num_boxes)
+            rois, rpn_cls_loss, rpn_bbox_loss = self.rpn(feature, gt_boxes)
             rpn_rois_outputs.append(rois)
             rpn_cls_outputs.append(rpn_cls_loss)
             rpn_bbox_outputs.append(rpn_bbox_loss)
@@ -270,7 +270,7 @@ class MaskRCNN(nn.Module):
         rpn_bbox_loss = torch.cat(rpn_bbox_outputs, dim=1)
 
         if self.training:
-            roi_data = self.rpn_proposal_target(rois, gt_boxes, num_boxes)
+            roi_data = self.rpn_proposal_target(rois, gt_boxes)
             rois, rois_label, rois_target, rois_inside_ws, rois_outside_ws = roi_data
             rois_label = Variable(rois_label.view(-1).long())
             rois_target = Variable(rois_target.view(-1, rois_target.size(2)))
