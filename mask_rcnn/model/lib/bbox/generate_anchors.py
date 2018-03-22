@@ -64,7 +64,6 @@ def generate_anchors(scales, ratios, shape, feature_stride, anchor_stride):
     return boxes
 '''
 
-'''
 def generate_pyramid_anchors(scales, ratios, feature_shapes, feature_strides,
                              anchor_stride):
     """Generate anchors at different levels of a feature pyramid. Each scale
@@ -83,4 +82,3 @@ def generate_pyramid_anchors(scales, ratios, feature_shapes, feature_strides,
         anchors.append(generate_anchors(scales[i], ratios, feature_shapes[i],
                                         feature_strides[i], anchor_stride))
     return np.concatenate(anchors, axis=0)
-'''
