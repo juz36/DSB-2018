@@ -9,7 +9,7 @@ from torch.autograd import Variable
 import numpy as np
 
 from model.lib.bbox.overlap import bbox_overlaps_batch
-from model.lib.bbox.transform import bbox_transform_batch, clip_boxes, clip_boxes_batch
+from model.lib.bbox.transform import bbox_transform_batch, bbox_transform_inv, clip_boxes, clip_boxes_batch
 from model.loss import smooth_l1_loss
 from model.lib.bbox.generate_anchors import generate_anchors
 from model.lib.bbox.nms import torch_nms as nms
@@ -89,7 +89,7 @@ class RPN(nn.Module):
 
         rpn_cls_prob_reshape = F.softmax(rpn_cls_score_reshape)
         rpn_cls_prob = self.reshape(rpn_cls_prob_reshape, self.score_out)
-        print(rpn_cls_prob.shape)
+
         # rpn boxes
         rpn_bbox_pred = self.bbox_conv(rpn_conv)
 
@@ -194,7 +194,7 @@ class ProposalLayer(nn.Module):
 
         # the first set of _num_anchors channels are bg probs
         # the second set are the fg probs
-        scores = input[0][:, self._num_anchors[level]:, :, :]
+        scores = input[0]#[:, self._num_anchors[level]:, :, :]
         bbox_deltas = input[1]
 
         pre_nms_topN  = self.config.PRE_NMS_ROIS_TRAINING
@@ -205,8 +205,8 @@ class ProposalLayer(nn.Module):
         batch_size = bbox_deltas.size(0)
 
         feat_height, feat_width = scores.size(2), scores.size(3)
-        shift_x = np.arange(0, feat_width) * self._feat_stride
-        shift_y = np.arange(0, feat_height) * self._feat_stride
+        shift_x = np.arange(0, feat_width) * self._feat_stride[level]
+        shift_y = np.arange(0, feat_height) * self._feat_stride[level]
         shift_x, shift_y = np.meshgrid(shift_x, shift_y)
         shifts = torch.from_numpy(np.vstack((shift_x.ravel(), shift_y.ravel(),
                                   shift_x.ravel(), shift_y.ravel())).transpose())
@@ -217,7 +217,7 @@ class ProposalLayer(nn.Module):
 
         self._anchors[level] = self._anchors[level].type_as(scores)
         # anchors = self._anchors.view(1, A, 4) + shifts.view(1, K, 4).permute(1, 0, 2).contiguous()
-        anchors = self._anchors.view(1, A, 4) + shifts.view(K, 1, 4)
+        anchors = self._anchors[level].view(1, A, 4) + shifts.view(K, 1, 4)
         anchors = anchors.view(1, K * A, 4).expand(batch_size, K * A, 4)
 
         # Transpose and reshape predicted bbox transformations to get them
@@ -229,7 +229,10 @@ class ProposalLayer(nn.Module):
         # Same story for the scores:
         scores = scores.permute(0, 2, 3, 1).contiguous()
         scores = scores.view(batch_size, -1)
-
+        print(A)
+        print(K)
+        print(anchors.shape)
+        print(bbox_deltas.shape)
         # Convert anchors into proposals via bbox transformations
         proposals = bbox_transform_inv(anchors, bbox_deltas, batch_size)
 
@@ -350,8 +353,8 @@ class AnchorTargetLayer(nn.Module):
         batch_size = gt_boxes.size(0)
 
         feat_height, feat_width = rpn_cls_score.size(2), rpn_cls_score.size(3)
-        shift_x = np.arange(0, feat_width) * self._feat_stride
-        shift_y = np.arange(0, feat_height) * self._feat_stride
+        shift_x = np.arange(0, feat_width) * self._feat_stride[level]
+        shift_y = np.arange(0, feat_height) * self._feat_stride[level]
         shift_x, shift_y = np.meshgrid(shift_x, shift_y)
         shifts = torch.from_numpy(np.vstack((shift_x.ravel(), shift_y.ravel(),
                                   shift_x.ravel(), shift_y.ravel())).transpose())
