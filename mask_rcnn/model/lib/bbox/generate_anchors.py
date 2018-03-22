@@ -68,6 +68,8 @@ def _scale_enum(anchor, scales):
     """
 
     w, h, x_ctr, y_ctr = _whctrs(anchor)
+    scales = np.array(scales)
+
     ws = w * scales
     hs = h * scales
     anchors = _mkanchors(ws, hs, x_ctr, y_ctr)

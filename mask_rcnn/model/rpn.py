@@ -154,10 +154,10 @@ class ProposalLayer(nn.Module):
                                            config.BACKBONE_STRIDES,
                                            config.RPN_ANCHOR_STRIDE)'''
         self._anchors = []
-        for i in range(len(config.RPN_ANCHOR_SCALES)):
+        for i in range(len(config.BACKBONE_STRIDES)):
             anchor = generate_anchors(config.IMAGES_PER_GPU,
                                       config.RPN_ANCHOR_RATIOS,
-                                      config.RPN_ANCHOR_SCALES[i])
+                                      config.RPN_ANCHOR_SCALES)
             self._anchors.append(torch.from_numpy(anchor).float())
         #self._anchors = torch.FloatTensor(self._anchors)
         self._num_anchors = []
@@ -315,10 +315,10 @@ class AnchorTargetLayer(nn.Module):
         self._num_anchors = self._anchors.size(0)'''
 
         self._anchors = []
-        for i in range(len(config.RPN_ANCHOR_SCALES)):
+        for i in range(len(config.BACKBONE_STRIDES)):
             anchor = generate_anchors(config.IMAGES_PER_GPU,
                                       config.RPN_ANCHOR_RATIOS,
-                                      config.RPN_ANCHOR_SCALES[i])
+                                      config.RPN_ANCHOR_SCALES)
             self._anchors.append(torch.from_numpy(anchor).float())
         #self._anchors = torch.FloatTensor(self._anchors)
         self._num_anchors = []

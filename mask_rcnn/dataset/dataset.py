@@ -111,8 +111,8 @@ class CellDataset(Dataset):
             gt_mask = resize_mask(gt_mask, scale, padding)
             gt_class_ids = np.ones(gt_mask.shape[2], dtype=np.int32)
             gt_bbox = extract_bboxes(gt_mask)
-            rpn_match, rpn_bbox = build_rpn_targets(image.shape, self.anchors,
-                                                    gt_class_ids, gt_bbox, self.config)
+#            rpn_match, rpn_bbox = build_rpn_targets(image.shape, self.anchors,
+#                                                    gt_class_ids, gt_bbox, self.config)
 
             return image, gt_class_ids, gt_bbox, gt_mask
         else:
