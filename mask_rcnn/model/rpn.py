@@ -157,7 +157,7 @@ class ProposalLayer(nn.Module):
         for i in range(len(config.RPN_ANCHOR_SCALES)):
             self._anchors.append(generate_anchors(config.RPN_ANCHOR_SCALES[i],
                                                   config.RPN_ANCHOR_RATIOS,
-                                                  config.BACKNONE_SHAPES[i],
+                                                  config.BACKBONE_SHAPES[i],
                                                   config.BACKBONE_STRIDES[i],
                                                   config.RPN_ANCHOR_STRIDE))
         self._anchors = torch.from_numpy(self._anchors).float()
@@ -319,7 +319,7 @@ class AnchorTargetLayer(nn.Module):
         for i in range(len(config.RPN_ANCHOR_SCALES)):
             self._anchors.append(generate_anchors(config.RPN_ANCHOR_SCALES[i],
                                                   config.RPN_ANCHOR_RATIOS,
-                                                  config.BACKNONE_SHAPES[i],
+                                                  config.BACKBONE_SHAPES[i],
                                                   config.BACKBONE_STRIDES[i],
                                                   config.RPN_ANCHOR_STRIDE))
         self._anchors = torch.from_numpy(self._anchors).float()
