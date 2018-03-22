@@ -16,11 +16,11 @@ class FPN(nn.Module):
 
         self.p6 = nn.MaxPool2d(kernel_size=1, stride=2, padding=0, ceil_mode=False)
 
-    def forward(self, C1, C2, C3, C4, C5):
+    def forward(self, C2, C3, C4, C5):
         P5 = self.c5p5(C5)
         P4 = self.c4p4(C4) + F.upsample(P5, scale_factor=2, mode='bilinear')
-        P3 = self.c4p4(C3) + F.upsample(P4, scale_factor=2, mode='bilinear')
-        P2 = self.c4p4(C2) + F.upsample(P3, scale_factor=2, mode='bilinear')
+        P3 = self.c3p3(C3) + F.upsample(P4, scale_factor=2, mode='bilinear')
+        P2 = self.c2p2(C2) + F.upsample(P3, scale_factor=2, mode='bilinear')
 
         # Attach 3x3 conv to all P layers to get the final feature maps.
         # P2 is 256, P3 is 128, P4 is 64, P5 is 32

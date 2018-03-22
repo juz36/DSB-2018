@@ -248,7 +248,7 @@ class MaskRCNN(nn.Module):
     def forward(self, x, gt_boxes, gt_masks):
         # Extract features
         C1, C2, C3, C4, C5 = self.feature_net(x)
-        P2, P3, P4, P5, P6 = self.fpn(C1, C2, C3, C4, C5)
+        P2, P3, P4, P5, P6 = self.fpn(C2, C3, C4, C5)
 
         # Note that P6 is used in RPN, but not in the classifier heads.
         rpn_feature_maps = [P2, P3, P4, P5, P6]
