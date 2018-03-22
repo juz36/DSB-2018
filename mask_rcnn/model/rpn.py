@@ -160,11 +160,11 @@ class ProposalLayer(nn.Module):
                                                   config.BACKBONE_SHAPES[i],
                                                   config.BACKBONE_STRIDES[i],
                                                   config.RPN_ANCHOR_STRIDE))
-        self._anchors = torch.from_numpy(self._anchors).float()
+        self._anchors = torch.FloatTensor(self._anchors)
         self._num_anchors = []
         for i in range(len(config.RPN_ANCHOR_SCALES)):
             self._num_anchors.append(self._anchors[i].size(0))
-        self._num_anchors = torch.from_numpy(self._num_anchors).int()
+        self._num_anchors = torch.IntTensor(self._num_anchors)
 
         # rois blob: holds R regions of interest, each is a 5-tuple
         # (n, x1, y1, x2, y2) specifying an image batch index n and a
