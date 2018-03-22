@@ -78,7 +78,7 @@ class RPN(nn.Module):
         self.rpn_cls_loss = 0
         self.rpn_bbox_loss = 0
 
-    def forward(self, x, gt_boxes=None):
+    def forward(self, x, level, gt_boxes=None):
         batch_size = x.size(0)
 
         rpn_conv = self.rpn_conv(x)
@@ -94,13 +94,13 @@ class RPN(nn.Module):
         rpn_bbox_pred = self.bbox_conv(rpn_conv)
 
         # proposal layer
-        rois = self.RPN_proposal((rpn_cls_prob.data, rpn_bbox_pred.data))
+        rois = self.RPN_proposal((rpn_cls_prob.data, rpn_bbox_pred.data), level)
 
         self.rpn_cls_loss = 0
         self.rpn_bbox_loss = 0
 
         if self.training:
-            rpn_data = self.RPN_anchor_target((rpn_cls_score.data, gt_boxes))
+            rpn_data = self.RPN_anchor_target((rpn_cls_score.data, gt_boxes), level)
 
             # classification loss
             rpn_cls_score = rpn_cls_score_reshape.permute(0, 2, 3, 1).contiguous().view(batch_size, -1, 2)
@@ -148,11 +148,11 @@ class ProposalLayer(nn.Module):
         self.config = config
 
         self._feat_stride = config.BACKBONE_STRIDES
-        anchors = generate_pyramid_anchors(config.RPN_ANCHOR_SCALES,
+        '''anchors = generate_pyramid_anchors(config.RPN_ANCHOR_SCALES,
                                            config.RPN_ANCHOR_RATIOS,
                                            config.BACKBONE_SHAPES,
                                            config.BACKBONE_STRIDES,
-                                           config.RPN_ANCHOR_STRIDE)
+                                           config.RPN_ANCHOR_STRIDE)'''
         self._anchors = []
         for i in range(len(config.RPN_ANCHOR_SCALES)):
             self._anchors.append(generate_anchors(config.RPN_ANCHOR_SCALES[i],
@@ -214,7 +214,7 @@ class ProposalLayer(nn.Module):
         A = self._num_anchors[level]
         K = shifts.size(0)
 
-        self._anchors = self._anchors.type_as(scores)
+        self._anchors[level] = self._anchors[level].type_as(scores)
         # anchors = self._anchors.view(1, A, 4) + shifts.view(1, K, 4).permute(1, 0, 2).contiguous()
         anchors = self._anchors.view(1, A, 4) + shifts.view(K, 1, 4)
         anchors = anchors.view(1, K * A, 4).expand(batch_size, K * A, 4)
@@ -306,19 +306,32 @@ class AnchorTargetLayer(nn.Module):
         self.config = config
 
         self._feat_stride = config.BACKBONE_STRIDES
-        self._scales = config.RPN_ANCHOR_SCALES
+        '''self._scales = config.RPN_ANCHOR_SCALES
         anchors = generate_pyramid_anchors(config.RPN_ANCHOR_SCALES,
                                            config.RPN_ANCHOR_RATIOS,
                                            config.BACKBONE_SHAPES,
                                            config.BACKBONE_STRIDES,
                                            config.RPN_ANCHOR_STRIDE)
         self._anchors = torch.from_numpy(anchors).float()
-        self._num_anchors = self._anchors.size(0)
+        self._num_anchors = self._anchors.size(0)'''
+
+        self._anchors = []
+        for i in range(len(config.RPN_ANCHOR_SCALES)):
+            self._anchors.append(generate_anchors(config.RPN_ANCHOR_SCALES[i],
+                                                  config.RPN_ANCHOR_RATIOS,
+                                                  config.BACKNONE_SHAPES[i],
+                                                  config.BACKBONE_STRIDES[i],
+                                                  config.RPN_ANCHOR_STRIDE))
+        self._anchors = torch.from_numpy(self._anchors).float()
+        self._num_anchors = []
+        for i in range(len(config.RPN_ANCHOR_SCALES)):
+            self._num_anchors.append(self._anchors[i].size(0))
+        self._num_anchors = torch.from_numpy(self._num_anchors).int()
 
         # allow boxes to sit over the edge by a small amount
         self._allowed_border = 0  # default is 0
 
-    def forward(self, input):
+    def forward(self, input, level):
         # Algorithm:
         #
         # for each (H, W) location i
@@ -342,11 +355,11 @@ class AnchorTargetLayer(nn.Module):
                                   shift_x.ravel(), shift_y.ravel())).transpose())
         shifts = shifts.contiguous().type_as(rpn_cls_score).float()
 
-        A = self._num_anchors
+        A = self._num_anchors[level]
         K = shifts.size(0)
 
-        self._anchors = self._anchors.type_as(gt_boxes) # move to specific gpu.
-        all_anchors = self._anchors.view(1, A, 4) + shifts.view(K, 1, 4)
+        self._anchors[level] = self._anchors[level].type_as(gt_boxes) # move to specific gpu.
+        all_anchors = self._anchors[level].view(1, A, 4) + shifts.view(K, 1, 4)
         all_anchors = all_anchors.view(K * A, 4)
 
         total_anchors = int(K * A)
