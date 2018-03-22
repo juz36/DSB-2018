@@ -214,7 +214,6 @@ class ProposalLayer(nn.Module):
 
         A = self._num_anchors[level]
         '''K = shifts.size(0)'''
-        print(scores.shape)
 
         self._anchors[level] = self._anchors[level].type_as(scores)
         # anchors = self._anchors.view(1, A, 4) + shifts.view(1, K, 4).permute(1, 0, 2).contiguous()
@@ -227,14 +226,13 @@ class ProposalLayer(nn.Module):
         bbox_deltas = bbox_deltas.permute(0, 2, 3, 1).contiguous()
         bbox_deltas = bbox_deltas.view(batch_size, -1, 4)'''
         anchors = self._anchors[level].view(1, A, 4)
-        anchors = anchors.view(1, A, 4).expand(batch_size, A, 4)
+        proposals = anchors.view(1, A, 4).expand(batch_size, A, 4)
         # Same story for the scores:
         scores = scores.permute(0, 2, 3, 1).contiguous()
         scores = scores.view(batch_size, -1)
 
         # Convert anchors into proposals via bbox transformations
         #proposals = bbox_transform_inv(anchors, bbox_deltas, batch_size)
-        print(anchors.shape)
 
         # 2. clip predicted boxes to image
         proposals = clip_boxes(proposals, self.config.IMAGE_MAX_DIM, batch_size)
