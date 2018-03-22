@@ -205,27 +205,29 @@ class ProposalLayer(nn.Module):
         batch_size = bbox_deltas.size(0)
 
         feat_height, feat_width = scores.size(2), scores.size(3)
-        shift_x = np.arange(0, feat_width) * self._feat_stride[level]
+        '''shift_x = np.arange(0, feat_width) * self._feat_stride[level]
         shift_y = np.arange(0, feat_height) * self._feat_stride[level]
         shift_x, shift_y = np.meshgrid(shift_x, shift_y)
         shifts = torch.from_numpy(np.vstack((shift_x.ravel(), shift_y.ravel(),
                                   shift_x.ravel(), shift_y.ravel())).transpose())
-        shifts = shifts.contiguous().type_as(scores).float()
+        shifts = shifts.contiguous().type_as(scores).float()'''
 
         A = self._num_anchors[level]
-        K = shifts.size(0)
+        '''K = shifts.size(0)'''
+        print(scores.shape)
 
         self._anchors[level] = self._anchors[level].type_as(scores)
         # anchors = self._anchors.view(1, A, 4) + shifts.view(1, K, 4).permute(1, 0, 2).contiguous()
-        anchors = self._anchors[level].view(1, A, 4) + shifts.view(K, 1, 4)
+        '''anchors = self._anchors[level].view(1, A, 4) + shifts.view(K, 1, 4)
         anchors = anchors.view(1, K * A, 4).expand(batch_size, K * A, 4)
 
         # Transpose and reshape predicted bbox transformations to get them
         # into the same order as the anchors:
 
         bbox_deltas = bbox_deltas.permute(0, 2, 3, 1).contiguous()
-        bbox_deltas = bbox_deltas.view(batch_size, -1, 4)
-
+        bbox_deltas = bbox_deltas.view(batch_size, -1, 4)'''
+        anchors = self._anchors[level].view(1, A, 4)
+        anchors = anchors.view(1, A, 4).expand(batch_size, A, 4)
         # Same story for the scores:
         scores = scores.permute(0, 2, 3, 1).contiguous()
         scores = scores.view(batch_size, -1)
