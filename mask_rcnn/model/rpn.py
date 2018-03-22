@@ -229,12 +229,10 @@ class ProposalLayer(nn.Module):
         # Same story for the scores:
         scores = scores.permute(0, 2, 3, 1).contiguous()
         scores = scores.view(batch_size, -1)
-        print(A)
-        print(K)
-        print(anchors.shape)
-        print(bbox_deltas.shape)
+
         # Convert anchors into proposals via bbox transformations
-        proposals = bbox_transform_inv(anchors, bbox_deltas, batch_size)
+        #proposals = bbox_transform_inv(anchors, bbox_deltas, batch_size)
+        print(anchors.shape)
 
         # 2. clip predicted boxes to image
         proposals = clip_boxes(proposals, self.config.IMAGE_MAX_DIM, batch_size)
