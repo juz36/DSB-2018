@@ -155,16 +155,17 @@ class ProposalLayer(nn.Module):
                                            config.RPN_ANCHOR_STRIDE)'''
         self._anchors = []
         for i in range(len(config.RPN_ANCHOR_SCALES)):
-            self._anchors.append(generate_anchors(config.RPN_ANCHOR_SCALES[i],
-                                                  config.RPN_ANCHOR_RATIOS,
-                                                  config.BACKBONE_SHAPES[i],
-                                                  config.BACKBONE_STRIDES[i],
-                                                  config.RPN_ANCHOR_STRIDE))
-        self._anchors = torch.FloatTensor(self._anchors)
+            anchor = generate_anchors(config.RPN_ANCHOR_SCALES[i],
+                                      config.RPN_ANCHOR_RATIOS,
+                                      config.BACKBONE_SHAPES[i],
+                                      config.BACKBONE_STRIDES[i],
+                                      config.RPN_ANCHOR_STRIDE)
+            self._anchors.append(torch.from_numpy(anchor).float())
+        #self._anchors = torch.FloatTensor(self._anchors)
         self._num_anchors = []
         for i in range(len(config.RPN_ANCHOR_SCALES)):
             self._num_anchors.append(self._anchors[i].size(0))
-        self._num_anchors = torch.IntTensor(self._num_anchors)
+        #self._num_anchors = torch.IntTensor(self._num_anchors)
 
         # rois blob: holds R regions of interest, each is a 5-tuple
         # (n, x1, y1, x2, y2) specifying an image batch index n and a
@@ -317,16 +318,17 @@ class AnchorTargetLayer(nn.Module):
 
         self._anchors = []
         for i in range(len(config.RPN_ANCHOR_SCALES)):
-            self._anchors.append(generate_anchors(config.RPN_ANCHOR_SCALES[i],
-                                                  config.RPN_ANCHOR_RATIOS,
-                                                  config.BACKBONE_SHAPES[i],
-                                                  config.BACKBONE_STRIDES[i],
-                                                  config.RPN_ANCHOR_STRIDE))
-        self._anchors = torch.FloatTensor(self._anchors)
+            anchor = generate_anchors(config.RPN_ANCHOR_SCALES[i],
+                                      config.RPN_ANCHOR_RATIOS,
+                                      config.BACKBONE_SHAPES[i],
+                                      config.BACKBONE_STRIDES[i],
+                                      config.RPN_ANCHOR_STRIDE)
+            self._anchors.append(torch.from_numpy(anchor).float())
+        #self._anchors = torch.FloatTensor(self._anchors)
         self._num_anchors = []
         for i in range(len(config.RPN_ANCHOR_SCALES)):
             self._num_anchors.append(self._anchors[i].size(0))
-        self._num_anchors = torch.IntTensor(self._num_anchors)
+        #self._num_anchors = torch.IntTensor(self._num_anchors)
 
         # allow boxes to sit over the edge by a small amount
         self._allowed_border = 0  # default is 0
