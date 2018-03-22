@@ -130,7 +130,7 @@ def train_collate(batch):
     gt_bboxs = [batch[b][2]for b in range(batch_size)]
     gt_masks = [batch[b][3]for b in range(batch_size)]
 
-    return imgs, [rpn_matchs, rpn_bboxs, gt_class_ids, gt_bboxs, gt_masks]
+    return imgs, [gt_class_ids, gt_bboxs, gt_masks]
 
 
 def build_rpn_targets(image_shape, anchors, gt_class_ids, gt_boxes, config):
