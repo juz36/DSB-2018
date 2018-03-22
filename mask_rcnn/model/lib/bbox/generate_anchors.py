@@ -77,6 +77,7 @@ def generate_pyramid_anchors(scales, ratios, feature_shapes, feature_strides,
     """
     # Anchors
     # [anchor_count, (y1, x1, y2, x2)]
+    return
     anchors = []
     for i in range(len(scales)):
         anchors.append(generate_anchors(scales[i], ratios, feature_shapes[i],
