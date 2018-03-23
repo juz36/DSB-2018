@@ -12,7 +12,7 @@ from model.lib.bbox.overlap import bbox_overlaps_batch
 from model.lib.bbox.transform import bbox_transform_batch, bbox_transform_inv, clip_boxes, clip_boxes_batch
 from model.loss import smooth_l1_loss
 from model.lib.bbox.generate_anchors import generate_anchors
-from model.lib.bbox.nms import torch_nms as nms
+from model.lib.nms.nms_wrapper import nms
 
 # ---------------------------------------------------------------
 # layers
