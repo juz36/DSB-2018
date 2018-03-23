@@ -23,11 +23,18 @@ def torch_nms(dets, thresh):
         return keep[:num_out[0]]
 
     else:
-        keep = dets.new(dets.size(0), 1).zero_().int()
-    	num_out = dets.new(1).zero_().int()
-    	nms.nms_cuda(keep, dets, num_out, thresh)
-    	keep = keep[:num_out[0]]
-    	return keep
+        scores = dets[:, 4]
+
+        order = scores.sort(0, descending=True)[1]
+        #keep = dets.new(dets.size(0), 1).zero_().int()
+        dets = dets[order].contiguous()
+        keep = torch.LongTensor(dets.size(0))
+        #num_out = dets.new(1).zero_().int()
+        num_out = torch.LongTensor(1)
+        #nms.nms_cuda(keep, dets, num_out, thresh)
+        _backend.gpu_nms(keep, num_out, dets, thresh)
+        keep = keep[:num_out[0]]
+        return keep
         '''
         x1 = dets[:, 0]
         y1 = dets[:, 1]
