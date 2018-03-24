@@ -127,7 +127,15 @@ def train_collate(batch):
     #rpn_matchs = np.stack([batch[b][1]for b in range(batch_size)], 0)
     #rpn_bboxs = np.stack([batch[b][2]for b in range(batch_size)], 0)
     gt_class_ids = [batch[b][1]for b in range(batch_size)]
-    gt_bboxs = [batch[b][2]for b in range(batch_size)]
+    gt_bboxs = []
+    for i in range(batch_size):
+        #TODO: max num of instances
+        gt_bbox_temp = np.zeros(100, 5)
+        gt_bbox_temp[:batch[i][2].shape[1],:] = batch[i][2]
+        gt_bboxs.append(gt_bbox_temp)
+    gt_bboxs = torch.FloatTensor(gt_bboxs)
+    #gt_bboxs = [batch[b][2]for b in range(batch_size)]
+    #gt_bboxs = torch.FloatTensor()
     gt_masks = [batch[b][3]for b in range(batch_size)]
     #gt_class_ids = torch.Tensor(gt_class_ids)
     gt_bboxs = torch.Tensor(gt_bboxs)
@@ -287,7 +295,7 @@ def extract_bboxes(mask):
     mask: [height, width, num_instances]. Mask pixels are either 1 or 0.
     Returns: bbox array [num_instances, (y1, x1, y2, x2)].
     """
-    boxes = np.zeros([mask.shape[-1], 4], dtype=np.int32)
+    boxes = np.zeros([mask.shape[-1], 5], dtype=np.int32)
     for i in range(mask.shape[-1]):
         m = mask[:, :, i]
         # Bounding box.
@@ -303,7 +311,8 @@ def extract_bboxes(mask):
             # No mask for this instance. Might happen due to
             # resizing or cropping. Set bbox to zeros
             x1, x2, y1, y2 = 0, 0, 0, 0
-        boxes[i] = np.array([y1, x1, y2, x2])
+        # TODO: 1 is class id
+        boxes[i] = np.array([y1, x1, y2, x2, 1])
     return boxes.astype(np.int32, copy=False)
 
 
