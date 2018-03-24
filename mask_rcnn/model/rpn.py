@@ -86,8 +86,8 @@ class RPN(nn.Module):
         # rpn classification score
         rpn_cls_score = self.score_conv(rpn_conv)
         rpn_cls_score_reshape = self.reshape(rpn_cls_score, 2)
-
-        rpn_cls_prob_reshape = F.softmax(rpn_cls_score_reshape)
+#        print(rpn_cls_score_reshape.shape)
+        rpn_cls_prob_reshape = F.softmax(rpn_cls_score_reshape, 1)
         rpn_cls_prob = self.reshape(rpn_cls_prob_reshape, self.score_out)
 
         # rpn boxes
@@ -110,7 +110,10 @@ class RPN(nn.Module):
             rpn_cls_score = torch.index_select(rpn_cls_score.view(-1,2), 0, rpn_keep)
             rpn_label = torch.index_select(rpn_label.view(-1), 0, rpn_keep.data)
             rpn_label = Variable(rpn_label.long())
+            #print(rpn_cls_score.shape)
+            #print(rpn_label.shape)
             self.rpn_cls_loss = F.cross_entropy(rpn_cls_score, rpn_label)
+#            print(self.rpn_cls_loss)
             fg_cnt = torch.sum(rpn_label.data.ne(0))
 
             rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_outside_weights = rpn_data[1:]
@@ -192,7 +195,7 @@ class ProposalLayer(nn.Module):
 
         # the first set of _num_anchors channels are bg probs
         # the second set are the fg probs
-        scores = input[0]#[:, self._num_anchors[level]:, :, :]
+        scores = input[0][:, self._num_anchors[level]:, :, :]
         bbox_deltas = input[1]
 
         pre_nms_topN  = self.config.PRE_NMS_ROIS_TRAINING
@@ -339,7 +342,8 @@ class AnchorTargetLayer(nn.Module):
 
         rpn_cls_score = input[0]
         gt_boxes = input[1]
-
+#        print(rpn_cls_score.shape)
+#        print(gt_boxes.shape)
         # map of shape (..., H, W)
         height, width = rpn_cls_score.size(2), rpn_cls_score.size(3)
 
@@ -364,8 +368,8 @@ class AnchorTargetLayer(nn.Module):
 
         keep = ((all_anchors[:, 0] >= -self._allowed_border) &
                 (all_anchors[:, 1] >= -self._allowed_border) &
-                (all_anchors[:, 2] < long(self.config.IMAGE_MAX_DIM) + self._allowed_border) &
-                (all_anchors[:, 3] < long(self.config.IMAGE_MAX_DIM) + self._allowed_border))
+                (all_anchors[:, 2] < self.config.IMAGE_MAX_DIM + self._allowed_border) &
+                (all_anchors[:, 3] < self.config.IMAGE_MAX_DIM + self._allowed_border))
 
         inds_inside = torch.nonzero(keep).view(-1)
 
@@ -433,22 +437,23 @@ class AnchorTargetLayer(nn.Module):
         # use a single value instead of 4 values for easy index.
         bbox_inside_weights[labels==1] = self.config.RPN_BBOX_INSIDE_WEIGHTS[0]
 
-        if self.config.TRAIN.RPN_POSITIVE_WEIGHT < 0:
-            num_examples = torch.sum(labels[i] >= 0)
-            positive_weights = 1.0 / num_examples
-            negative_weights = 1.0 / num_examples
-        else:
-            assert ((self.config.TRAIN.RPN_POSITIVE_WEIGHT > 0) &
-                    (self.config.TRAIN.RPN_POSITIVE_WEIGHT < 1))
+        # if self.config.RPN_POSITIVE_WEIGHT < 0:
+        num_examples = torch.sum(labels[i] >= 0).float()
+ #       print(num_examples)
+        positive_weights = 1.0 / num_examples
+        negative_weights = 1.0 / num_examples
+        # else:
+        #     assert ((self.config.TRAIN.RPN_POSITIVE_WEIGHT > 0) &
+        #             (self.config.TRAIN.RPN_POSITIVE_WEIGHT < 1))
 
         bbox_outside_weights[labels == 1] = positive_weights
         bbox_outside_weights[labels == 0] = negative_weights
-
+ #       print(bbox_outside_weights.shape)
         labels = _unmap(labels, total_anchors, inds_inside, batch_size, fill=-1)
         bbox_targets = _unmap(bbox_targets, total_anchors, inds_inside, batch_size, fill=0)
         bbox_inside_weights = _unmap(bbox_inside_weights, total_anchors, inds_inside, batch_size, fill=0)
         bbox_outside_weights = _unmap(bbox_outside_weights, total_anchors, inds_inside, batch_size, fill=0)
-
+ #       print(bbox_outside_weights.shape)
         outputs = []
 
         labels = labels.view(batch_size, height, width, A).permute(0,3,1,2).contiguous()

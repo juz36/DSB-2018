@@ -130,15 +130,15 @@ def train_collate(batch):
     gt_bboxs = []
     for i in range(batch_size):
         #TODO: max num of instances
-        gt_bbox_temp = np.zeros(100, 5)
-        gt_bbox_temp[:batch[i][2].shape[1],:] = batch[i][2]
+        gt_bbox_temp = np.zeros((100, 5))
+        gt_bbox_temp[:batch[i][2].shape[0],:] = batch[i][2]
         gt_bboxs.append(gt_bbox_temp)
     gt_bboxs = torch.FloatTensor(gt_bboxs)
     #gt_bboxs = [batch[b][2]for b in range(batch_size)]
     #gt_bboxs = torch.FloatTensor()
     gt_masks = [batch[b][3]for b in range(batch_size)]
     #gt_class_ids = torch.Tensor(gt_class_ids)
-    gt_bboxs = torch.Tensor(gt_bboxs)
+    #gt_bboxs = torch.Tensor(gt_bboxs)
     #gt_masks = torch.from_numpy(gt_masks)
     return imgs, [gt_class_ids, gt_bboxs, gt_masks]
 
