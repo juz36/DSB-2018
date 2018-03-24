@@ -137,7 +137,9 @@ def train_collate(batch):
     #gt_bboxs = [batch[b][2]for b in range(batch_size)]
     #gt_bboxs = torch.FloatTensor()
     gt_masks = [batch[b][3]for b in range(batch_size)]
-
+    #gt_class_ids = torch.Tensor(gt_class_ids)
+    #gt_bboxs = torch.Tensor(gt_bboxs)
+    #gt_masks = torch.from_numpy(gt_masks)
     return imgs, [gt_class_ids, gt_bboxs, gt_masks]
 
 

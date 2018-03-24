@@ -56,6 +56,7 @@ for epoch in range(num_epoch):
         gt_class_ids, gt_boxes, gt_masks = gts
 
         # compute loss
+        gt_boxes = gt_boxes.cuda()
         logits = model.forward(imgs, gt_boxes, gt_masks)
 
         #loss, saved_for_log = total_loss(logits, gts, config)

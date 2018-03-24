@@ -5,6 +5,7 @@ import numpy as np
 from model.lib.bbox.overlap import bbox_overlaps_batch
 from model.lib.bbox.transform import bbox_transform_batch
 
+
 class ProposalTargetLayer(nn.Module):
     """
     Assign object detection proposals to ground-truth targets. Produces proposal
@@ -66,7 +67,7 @@ class ProposalTargetLayer(nn.Module):
         offset = torch.arange(0, batch_size)*gt_boxes.size(1)
         offset = offset.view(-1, 1).type_as(gt_assignment) + gt_assignment
 
-        labels = gt_boxes[:,:,4].contiguous().view(-1).index(offset.view(-1))\
+        labels = gt_boxes[:,:,4].contiguous().view(-1).index_select(0, offset.view(-1))\
                                                             .view(batch_size, -1)
 
         labels_batch = labels.new(batch_size, rois_per_image).zero_()
@@ -75,8 +76,8 @@ class ProposalTargetLayer(nn.Module):
         # Guard against the case when an image has fewer than max_fg_rois_per_image
         # foreground RoIs
         for i in range(batch_size):
-
-            fg_inds = torch.nonzero(max_overlaps[i] >= config.TRAIN.FG_THRESH).view(-1)
+            # <TODO> hardcode config.TRAIN.FG_THRESH
+            fg_inds = torch.nonzero(max_overlaps[i] >= 0.5).view(-1)
             fg_num_rois = fg_inds.numel()
 
             # Select background RoIs as those within [BG_THRESH_LO, BG_THRESH_HI)

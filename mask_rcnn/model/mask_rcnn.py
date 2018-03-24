@@ -255,8 +255,8 @@ class MaskRCNN(nn.Module):
 
         self.mrcnn_feature_maps = [P2, P3, P4, P5]
 
-        rpn_class_logits_outputs = []
-        rpn_class_outputs = []
+        rpn_rois_outputs = []
+        rpn_cls_outputs = []
         rpn_bbox_outputs = []
         # RPN proposals
         # for i in range(len(rpn_feature_maps)):
@@ -265,12 +265,13 @@ class MaskRCNN(nn.Module):
         for i in range(len(rpn_feature_maps)):
             rois, rpn_cls_loss, rpn_bbox_loss = self.rpn(rpn_feature_maps[i], i, gt_boxes)
             rpn_rois_outputs.append(rois)
+#            print(rpn_cls_loss.shape)
             rpn_cls_outputs.append(rpn_cls_loss)
             rpn_bbox_outputs.append(rpn_bbox_loss)
 
         rois = torch.cat(rpn_rois_outputs, dim=1)
-        rpn_cls_loss = torch.cat(rpn_cls_outputs, dim=1)
-        rpn_bbox_loss = torch.cat(rpn_bbox_outputs, dim=1)
+        #rpn_cls_loss = torch.cat(rpn_cls_outputs, dim=1)
+        #rpn_bbox_loss = torch.cat(rpn_bbox_outputs)
 
         if self.training:
             roi_data = self.rpn_proposal_target(rois, gt_boxes)
