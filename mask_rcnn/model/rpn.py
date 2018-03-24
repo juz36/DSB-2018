@@ -364,8 +364,8 @@ class AnchorTargetLayer(nn.Module):
 
         keep = ((all_anchors[:, 0] >= -self._allowed_border) &
                 (all_anchors[:, 1] >= -self._allowed_border) &
-                (all_anchors[:, 2] < long(self.config.IMAGE_MAX_DIM) + self._allowed_border) &
-                (all_anchors[:, 3] < long(self.config.IMAGE_MAX_DIM) + self._allowed_border))
+                (all_anchors[:, 2] < self.config.IMAGE_MAX_DIM + self._allowed_border) &
+                (all_anchors[:, 3] < self.config.IMAGE_MAX_DIM + self._allowed_border))
 
         inds_inside = torch.nonzero(keep).view(-1)
 
